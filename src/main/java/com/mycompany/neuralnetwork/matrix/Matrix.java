@@ -212,6 +212,7 @@ public class Matrix {
     private void modifySelf(Matrix matrix){
         this.shape=matrix.shape;
         this.elType=matrix.elType;
+        this.axes=matrix.shape.length;
         this.elements=matrix.elements;
         this.size=matrix.size;
     }
