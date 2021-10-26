@@ -16,6 +16,9 @@ import java.util.logging.Logger;
 import java.util.stream.Collectors;
 import java.util.stream.DoubleStream;
 import java.util.stream.Stream;
+import org.nd4j.linalg.api.buffer.DataType;
+import org.nd4j.linalg.api.ndarray.INDArray;
+import org.nd4j.linalg.factory.Nd4j;
 
 /**
  *
@@ -79,6 +82,18 @@ public class Matrices {
                 Logger.getLogger(Matrices.class.getName()).log(Level.SEVERE, null, ex);
             }
             return acc;});
+    }
+    
+    public static Matrix matrixMultNd4j(Matrix matrix1, Matrix matrix2) throws MatrixException{        
+        INDArray nd_matrix=Nd4j.create(matrix1.getElements().stream().mapToDouble(e->e.doubleValue()).toArray(),
+                Arrays.stream(matrix1.getShape()).mapToLong(i->(long)i).toArray(),DataType.DOUBLE);
+        INDArray nd_matrix1=Nd4j.create(matrix2.getElements().stream().mapToDouble(e->e.doubleValue()).toArray(),
+                Arrays.stream(matrix2.getShape()).mapToLong(i->(long)i).toArray(),DataType.DOUBLE);
+        INDArray nd_matrix2=nd_matrix.mmul(nd_matrix1);
+        Matrix result=new Matrix(Arrays.stream(nd_matrix2.data().asDouble()).boxed().collect(Collectors.toList()),
+                Arrays.stream(nd_matrix2.shape()).mapToInt(n->(int)n).toArray(),Double.class);
+        if(result.getAxes()==2)result.transpose();
+        return result;
     }
     
     public static Matrix add(Matrix...matrixes) throws MatrixException{//think about replacing stream with for loop
