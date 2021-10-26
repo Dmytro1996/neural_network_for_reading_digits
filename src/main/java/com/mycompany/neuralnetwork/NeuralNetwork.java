@@ -15,10 +15,16 @@ import java.util.Arrays;
 import java.util.List;
 import com.google.gson.Gson;
 import com.mycompany.neuralnetwork.dataloader.DataLoader;
+import com.mycompany.neuralnetwork.network.NetworkNd4j;
 import java.util.ArrayList;
 import java.util.Random;
 import java.util.stream.Collectors;
+import java.util.stream.DoubleStream;
 import java.util.stream.IntStream;
+import org.nd4j.linalg.api.buffer.DataType;
+import org.nd4j.linalg.api.ndarray.INDArray;
+import org.nd4j.linalg.factory.Nd4j;
+import org.nd4j.linalg.ops.transforms.Transforms;
 
 /**
  *
@@ -27,8 +33,8 @@ import java.util.stream.IntStream;
 public class NeuralNetwork {
     
     public static void main(String[] args) throws MatrixException, Exception{
-        Matrix matrix=new Matrix(new int[]{3,3},Integer.class);
-        Matrix newMatrix=new Matrix(new int[]{3,3});
+        Matrix matrix=new Matrix(new int[]{9},Integer.class);
+        Matrix newMatrix=new Matrix(new int[]{9});
         //List<Number> matrixElems=Arrays.asList(new Number[]{1,2,3,4,5,6,7,8,9,10,11,12});
         List<Number> matrixElems=Arrays.asList(new Number[]{1,2,3,4,5,6,7,8,7});
         matrix.setElements(matrixElems);        
@@ -52,7 +58,8 @@ public class NeuralNetwork {
         //System.out.println(Matrixes.combineElements(Arrays.asList(new Integer[]{1,2,3,4,5}),Arrays.asList(new Integer[]{11,12,30,24,50})));
         Matrix input=new Matrix(Arrays.asList(new Integer[]{1,1,1}),new int[]{3},Double.class);
         Matrix output=new Matrix(Arrays.asList(new Integer[]{1,1}),new int[]{2},Double.class);
-        Network net=new Network(new int[]{784,30,10});
+        //Network net=new Network(new int[]{784,30,10});
+        NetworkNd4j net=new NetworkNd4j(new int[]{784,30,10});
         /*System.out.println("Feedforward:"+
                 net.feedforward(new Matrix(Arrays.asList(new Integer[]{1,0,1}),new int[]{3},Double.class)));
         System.out.println("Sigmoid:"+net.sigmoid(10));
@@ -61,13 +68,24 @@ public class NeuralNetwork {
         System.out.println("Evaluate:"+net.evaluate(Arrays.asList(new Matrix[][]{new Matrix[]{input,output}})));*/
         //System.out.println("Backpropagation"+Arrays.toString(net.backprop(input,output)[1]));
         //long memoryBefore=Runtime.getRuntime().totalMemory()-Runtime.getRuntime().freeMemory();
-        List<Matrix[]> training_data=DataLoader.loadTrainingData(1);
-        List<Matrix[]> test_data=DataLoader.loadTestData();
-        test_data.stream().limit(100).forEach(m->System.out.println("Elements"+m[1].getElements()));
+        //List<Matrix[]> training_data=DataLoader.loadTrainingDataAsMatrices(1);
+        //List<Matrix[]> test_data=DataLoader.loadTestDataAsMatrices();
+        List<INDArray[]> training_data_nd4j=DataLoader.loadTrainingDataAsINDArrays(1);
+        List<INDArray[]> test_data_nd4j=DataLoader.loadTestDataAsINDArrays();
+        //test_data.stream().limit(100).forEach(m->System.out.println("Elements"+m[1].getElements()));
+        /*matrix.getElements().stream().mapToInt(e->e.intValue()).toArray();
+        INDArray nd_matrix=Nd4j.create(matrix.getElements().stream().mapToInt(e->e.intValue()).toArray(),
+                Arrays.stream(matrix.getShape()).mapToLong(i->(long)i).toArray(),DataType.DOUBLE);
+        INDArray nd_matrix1=Nd4j.create(newMatrix.getElements().stream().mapToInt(e->e.intValue()).toArray(),
+                Arrays.stream(newMatrix.getShape()).mapToLong(i->(long)i).toArray(),DataType.DOUBLE);
+        System.out.println(Arrays.toString(nd_matrix.shape()));
+        System.out.println("Result of operation:"+nd_matrix.sub(nd_matrix1).toString());
+        System.out.println("nd_matrix:"+nd_matrix.argMax(0).data().asInt()[0]);
+        System.out.println(Arrays.toString(Matrices.matrixMultNd4j(matrix, newMatrix).getShape()));
         System.out.println(matrix);
-        System.out.println(matrix.argmax());
-        System.out.println(test_data.get(0)[1].getElements().get(0).intValue());
-        System.out.println(matrix.argmax()==test_data.get(0)[1].getElements().get(0).intValue());
+        System.out.println(matrix.argmax());*/
+        //System.out.println(test_data.get(0)[1].getElements().get(0).intValue());
+        //System.out.println(matrix.argmax()==test_data.get(0)[1].getElements().get(0).intValue());
         /*System.out.println("Training_data memory:"+(memoryBefore-(Runtime.getRuntime().totalMemory()-Runtime.getRuntime().freeMemory())));
         System.out.println("Training_data size:"+training_data.size());
         System.out.println("Shape:"+Arrays.toString(training_data.get(0)[0].getShape()));
@@ -87,7 +105,9 @@ public class NeuralNetwork {
         //System.out.println(net.getBiases());
         //System.out.println(net.evaluate(test_data.subList(0, 100)));
         //System.out.println(net.feedforward(training_data.get(0)[0]));
-        net.SGD(training_data, 5, 10, 5.5d, test_data.subList(0, 1000));
+        //net.SGD(training_data, 5, 10, 0.5d, test_data.subList(0, 1000));
+        net.SGD(training_data_nd4j, 5, 10, 0.5d, test_data_nd4j.subList(0, 1000));
+        //System.out.println(net.backprop(training_data_nd4j.get(0)[0], training_data_nd4j.get(0)[1])[0]);
         //System.out.println(net.feedforward(training_data.get(0)[0]));
         //System.out.println(net.evaluate(test_data.subList(0, 1000)));
         //System.out.println(net.feedforward(training_data.get(0)[0]));
@@ -107,10 +127,13 @@ public class NeuralNetwork {
         */
         //System.out.println("Bias grad:"+Arrays.toString(net.backprop(training_input, training_output)[0]));
         //System.out.println("Weight grad:"+Arrays.toString(net.backprop(training_input, training_output)[1]));
-        /*test_data.stream().limit(100).forEach(m->System.out.println("Elements"+m[1].getElements()));
-        net.update_mini_batch(Arrays.asList(new Matrix[][]{new Matrix[]{test_data.get(0)[1],training_output}}), 0.5);
+        //test_data.stream().limit(100).forEach(m->System.out.println("Elements"+m[1].getElements()));
+        /*net.update_mini_batch(Arrays.asList(new Matrix[][]{new Matrix[]{test_data.get(0)[1],training_output}}), 0.5);
         System.out.println("Biases:"+net.getBiases());
         System.out.println("Weights:"+net.getWeights());*/
+        //Matrix backprop_input=new Matrix(DoubleStream.generate(()->0.5).limit(10).boxed().collect(Collectors.toList()),new int[]{10},Double.class);
+        //System.out.println(Matrices.matrixMultNd4j(net.getWeights().get(0), backprop_input));
+        //System.out.println(Arrays.toString(net.backprop(backprop_input, training_output)[0]));
         //List<Matrix[]> training_data=new ArrayList<>();
         //List<Matrix[]> test_data=new ArrayList<>();
         //Random rand=new Random();
