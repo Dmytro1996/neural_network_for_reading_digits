@@ -25,6 +25,9 @@ import java.nio.file.Files;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.stream.Collectors;
+import org.nd4j.linalg.api.buffer.DataType;
+import org.nd4j.linalg.api.ndarray.INDArray;
+import org.nd4j.linalg.factory.Nd4j;
 
 /**
  *
@@ -32,25 +35,51 @@ import java.util.stream.Collectors;
  */
 public class DataLoader {
     
-    public static List<Matrix[]> loadTrainingData(int packages) throws IOException{
+    public static List<INDArray[]> loadTrainingDataAsINDArrays(int packages) throws IOException{
         String fileName="src\\main\\resources\\data\\mnist_training_data_";
-        List<Matrix[]> result=loadData(fileName+"1.json");
+        List<INDArray[]> result=loadDataAsINDArrays(fileName+"1.json");
         for(int i=1;i<packages;i++){
-            result.addAll(loadData(fileName+(i+1)+".json"));
+            try{
+                result.addAll(loadDataAsINDArrays(fileName+(i+1)+".json"));
+            } catch(FileNotFoundException e){
+                System.out.println(e.getMessage());
+                break;
+            }
         }
         return result;
     }
     
-    public static List<Matrix[]> loadTestData() throws IOException{
-        return loadData("src\\main\\resources\\data\\mnist_test_data.json");
+    public static List<INDArray[]> loadTestDataAsINDArrays() throws IOException{
+        return loadDataAsINDArrays("src\\main\\resources\\data\\mnist_test_data.json");
+    }
+    
+    public static List<INDArray[]> loadValidationDataAsINDArrays() throws IOException{
+        return loadDataAsINDArrays("src\\main\\resources\\data\\mnist_validation_data.json");
+    }
+    
+    public static List<Matrix[]> loadTrainingDataAsMatrices(int packages) throws IOException{
+        String fileName="src\\main\\resources\\data\\mnist_training_data_";
+        List<Matrix[]> result=loadDataAsMatrices(fileName+"1.json");
+        for(int i=1;i<packages;i++){
+            try{
+                result.addAll(loadDataAsMatrices(fileName+(i+1)+".json"));
+            } catch(FileNotFoundException e){
+                System.out.println(e.getMessage());
+                break;
+            }
+        }
+        return result;
+    }
+    
+    public static List<Matrix[]> loadTestDataAsMatrices() throws IOException{
+        return loadDataAsMatrices("src\\main\\resources\\data\\mnist_test_data.json");
     }
     
     public static List<Matrix[]> loadValidationData() throws IOException{
-        return loadData("src\\main\\resources\\data\\mnist_validation_data_by_line.json");
-        //return loadData("C:\\Users\\dmytr\\OneDrive\\Documents\\Python\\train_data_short_json.json");
+        return loadDataAsMatrices("src\\main\\resources\\data\\mnist_validation_data.json");
     }
     
-    public static List<Matrix[]> loadData(String fileName) throws IOException{
+    public static List<Matrix[]> loadDataAsMatrices(String fileName) throws IOException{
         File file=new File(fileName);
         System.out.println(file.getAbsolutePath());
         FileReader fr=new FileReader(fileName);
@@ -78,5 +107,14 @@ public class DataLoader {
                                 }).collect(Collectors.toList());
         System.out.println("Transforming to list ended: "+((System.currentTimeMillis()-readingEnded)/1000));
         return result;
+    }
+    
+    public static List<INDArray[]> loadDataAsINDArrays(String fileName) throws IOException{        
+        return loadDataAsMatrices(fileName).stream().map(m->
+                new INDArray[]{Nd4j.create(m[0].getElements().stream().mapToDouble(e->e.doubleValue()).toArray(),
+                        Arrays.stream(m[0].getShape()).mapToLong(i->(long)i).toArray(),DataType.DOUBLE),
+                    Nd4j.create(m[1].getElements().stream().mapToDouble(e->e.doubleValue()).toArray(),
+                        Arrays.stream(m[1].getShape()).mapToLong(i->(long)i).toArray(),DataType.DOUBLE)})
+                .collect(Collectors.toList());
     }
 }
