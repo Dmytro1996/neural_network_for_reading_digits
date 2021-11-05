@@ -225,7 +225,10 @@ public class NetworkEnhanced {
         while((s=br.readLine())!=null){
             text.append(s);
         }
-        return new Gson().fromJson(text.toString(), NetworkEnhanced.class);
+        NetworkEnhanced loadedNet=new Gson().fromJson(text.toString(), NetworkEnhanced.class);
+        this.weights=loadedNet.getWeights();
+        this.biases=loadedNet.getBiases();
+        return loadedNet;
     }
 
     public List<INDArray> getWeights() {
