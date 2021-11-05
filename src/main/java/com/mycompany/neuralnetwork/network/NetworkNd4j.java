@@ -5,17 +5,10 @@
  */
 package com.mycompany.neuralnetwork.network;
 
-import com.mycompany.neuralnetwork.exceptions.MatrixException;
-import com.mycompany.neuralnetwork.matrix.Matrices;
-import com.mycompany.neuralnetwork.matrix.Matrix;
-import java.util.Arrays;
 import java.util.Collections;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Random;
-import java.util.function.Function;
-import java.util.logging.Level;
-import java.util.logging.Logger;
 import java.util.stream.Collectors;
 import java.util.stream.DoubleStream;
 import java.util.stream.IntStream;
@@ -93,8 +86,6 @@ public class NetworkNd4j {
         for(int i=0;i<shape.length-1;i++){
             nablas[1][i]=nablas[1][i].mul(eta/mini_batch.size());
             nablas[0][i]=nablas[0][i].mul(eta/mini_batch.size());
-            //System.out.println(weights.size());
-            //System.out.println(Arrays.toString(weights.get(i).shape()));
             weights.set(i, weights.get(i).sub(nablas[1][i]));
             biases.set(i,biases.get(i).sub(nablas[0][i]));
         }
@@ -112,7 +103,6 @@ public class NetworkNd4j {
             zs.add(weights.get(i).mmul(activation).add(biases.get(i)));
             activation=Transforms.sigmoid(zs.get(i),true);
             activations.add(activation);
-            //System.out.println(Arrays.toString(weights.get(i).shape()));
         }
         INDArray delta=cost_derivative(activations.get(activations.size()-1),y)
                 .mul(Transforms.sigmoidDerivative(zs.get(zs.size()-1),true));
@@ -126,22 +116,10 @@ public class NetworkNd4j {
             INDArray sp=Transforms.sigmoidDerivative(z,true);
             delta=weights.get(weights.size()-i+1).transpose().mmul(delta).mul(sp);
             nabla_b[nabla_b.length-i]=delta.dup();
-            /*nabla_w[nabla_w.length-i]=new Matrix(nabla_b[nabla_b.length-i]
-                .getElements().stream().map(e->
-                        activations.get(activations.size()-j-1).getElements().stream()
-                        .map(del->del.doubleValue()*e.doubleValue()))
-                .flatMap(Function.identity()).collect(Collectors.toList()),
-        weights.get(weights.size()-i).getShape(),Double.class);*/
             nabla_w[nabla_w.length-i]=delta.reshape(new int[]{(int)delta.shape()[0],1})
                 .mmul(activations.get(activations.size()-j-1).reshape(
                         new int[]{1,(int)activations.get(activations.size()-j-1).shape()[0]}));
-            /*sp.close();
-            z.close();*/
         }
-        /*delta.close();
-        activation.close();
-        activations.parallelStream().forEach(a->a.close());
-        zs.parallelStream().forEach(a->a.close());*/
         return new INDArray[][]{nabla_b,nabla_w};
     }
     
