@@ -68,7 +68,7 @@ public class NetworkNd4j {
                     .collect(Collectors.toList());
             System.out.println(mini_batches.size());
             long beginPoint=System.currentTimeMillis();
-            mini_batches.parallelStream().forEach(mini_batch->{
+            mini_batches.forEach(mini_batch->{
                     update_mini_batch(mini_batch,eta);
             });
             System.out.println("\n"+(System.currentTimeMillis()-beginPoint));
@@ -85,14 +85,14 @@ public class NetworkNd4j {
         INDArray[][] nablas=mini_batch.parallelStream().map(mb->backprop(mb[0],mb[1]))
                 .reduce((acc,x)->{
             for(int i=0;i<num_layers-1;i++){
-                    acc[0][i].add(x[0][i]);
-                    acc[1][i].add(x[1][i]);
+                    acc[0][i]=acc[0][i].add(x[0][i]);
+                    acc[1][i]=acc[1][i].add(x[1][i]);
             }
             return acc;
         }).get(); 
         for(int i=0;i<shape.length-1;i++){
-            nablas[1][i].mul(eta/mini_batch.size());
-            nablas[0][i].mul(eta/mini_batch.size());
+            nablas[1][i]=nablas[1][i].mul(eta/mini_batch.size());
+            nablas[0][i]=nablas[0][i].mul(eta/mini_batch.size());
             //System.out.println(weights.size());
             //System.out.println(Arrays.toString(weights.get(i).shape()));
             weights.set(i, weights.get(i).sub(nablas[1][i]));
@@ -135,7 +135,13 @@ public class NetworkNd4j {
             nabla_w[nabla_w.length-i]=delta.reshape(new int[]{(int)delta.shape()[0],1})
                 .mmul(activations.get(activations.size()-j-1).reshape(
                         new int[]{1,(int)activations.get(activations.size()-j-1).shape()[0]}));
+            /*sp.close();
+            z.close();*/
         }
+        /*delta.close();
+        activation.close();
+        activations.parallelStream().forEach(a->a.close());
+        zs.parallelStream().forEach(a->a.close());*/
         return new INDArray[][]{nabla_b,nabla_w};
     }
     
@@ -163,6 +169,14 @@ public class NetworkNd4j {
 
     public List<INDArray> getBiases() {
         return biases;
+    }
+
+    public int getNum_layers() {
+        return num_layers;
+    }
+
+    public int[] getShape() {
+        return shape;
     }
     
 
