@@ -8,6 +8,7 @@ package com.mycompany.neuralnetwork.network;
 import com.google.gson.Gson;
 import com.mycompany.neuralnetwork.cost.Cost;
 import com.mycompany.neuralnetwork.cost.CrossEntropyCost;
+import com.mycompany.neuralnetwork.neuron.Neuron;
 import java.io.BufferedReader;
 import java.util.Collections;
 import java.util.LinkedList;
@@ -38,19 +39,21 @@ public class NetworkEnhanced {
     private List<INDArray> weights;
     private List<INDArray> biases;
     private Cost cost;
+    private Neuron neuron;
     
-    public NetworkEnhanced(int[] shape, Cost cost){
+    public NetworkEnhanced(int[] shape, Cost cost, Neuron neuron){
         this.shape=shape;
         this.num_layers=shape.length;
         weights=new LinkedList<>();
         biases=new LinkedList<>();
         this.cost=cost;
+        this.neuron=neuron;
         default_weight_initializer();
     }
     
     public INDArray feedforward(INDArray activation){
         for(int i=0;i<weights.size();i++){
-            activation=Transforms.sigmoid(weights.get(i).mmul(activation).add(biases.get(i)),true);
+            activation=neuron.fun(weights.get(i).mmul(activation).add(biases.get(i)));
         }
         return activation;
     }
@@ -131,7 +134,7 @@ public class NetworkEnhanced {
             //System.out.println(biases.get(i));
             zs.add(weights.get(i).mmul(activation).add(biases.get(i)));
             //System.out.println("z:"+zs.get(i));
-            activation=Transforms.sigmoid(zs.get(i),true);
+            activation=neuron.fun(zs.get(i));
             //System.out.println("Activation:"+activation);
             activations.add(activation);
         }
@@ -148,7 +151,7 @@ public class NetworkEnhanced {
         for(int i=2;i<num_layers;i++){
             int j=i;
             INDArray z=zs.get(zs.size()-i);
-            INDArray sp=Transforms.sigmoidDerivative(z,true);
+            INDArray sp=neuron.derivative(z);
             delta=weights.get(weights.size()-i+1).transpose().mmul(delta).mul(sp);
             //System.out.println("delta"+i+":"+delta);
             nabla_b[nabla_b.length-i]=delta.dup();
