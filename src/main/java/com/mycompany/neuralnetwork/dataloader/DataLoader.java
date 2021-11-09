@@ -12,17 +12,7 @@ import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.FileReader;
 import java.io.IOException;
-import java.util.LinkedList;
 import java.util.List;
-import com.google.gson.reflect.TypeToken;
-import com.google.gson.stream.JsonReader;
-import java.io.BufferedInputStream;
-import java.io.FileInputStream;
-import java.io.InputStream;
-import java.io.InputStreamReader;
-import java.nio.charset.StandardCharsets;
-import java.nio.file.Files;
-import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.stream.Collectors;
 import org.nd4j.linalg.api.buffer.DataType;
@@ -96,7 +86,7 @@ public class DataLoader {
         long readingEnded=System.currentTimeMillis()-beginPoint;
         System.out.println("Reading ended:"+readingEnded);        
         Gson gson=new Gson();
-        List<Matrix[]> result=(List<Matrix[]>)Arrays.stream(matrixArr).limit(5000).map(str->
+        List<Matrix[]> result=(List<Matrix[]>)Arrays.stream(matrixArr).map(str->
                 gson.fromJson(new StringBuilder(str).insert(0,"[").append("]").toString(),
                         Matrix[].class)).map(ms->{
                             ms[0].setElType(Double.class);
