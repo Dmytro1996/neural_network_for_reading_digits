@@ -58,7 +58,7 @@ public class NetworkEnhanced {
         return activation;
     }
     
-    public void SGD(List<INDArray[]> train_data, int epochs, int mini_batch_size, double eta,
+    /*public void SGD(List<INDArray[]> train_data, int epochs, int mini_batch_size, double eta,
             double lambda, boolean monitor_eval_cost, boolean monitor_train_cost,
             boolean monitor_train_acc, List<INDArray[]>...eval_data){
         int len_eval=(eval_data.length!=0)?eval_data[0].size():0;
@@ -162,7 +162,7 @@ public class NetworkEnhanced {
             //System.out.println("nabla_w[nabla_w.length-i]:"+nabla_w[nabla_w.length-i]);
         }
         return new INDArray[][]{nabla_b,nabla_w};
-    }
+    }*/
     
     public long countAccuracy(List<INDArray[]> eval_data, boolean convert){
         if(convert){
@@ -248,6 +248,14 @@ public class NetworkEnhanced {
 
     public int[] getShape() {
         return shape;
+    }
+
+    public Cost getCost() {
+        return cost;
+    }
+
+    public Neuron getNeuron() {
+        return neuron;
     }
     
 
