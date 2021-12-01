@@ -5,12 +5,12 @@
  */
 package com.mycompany.neuralnetwork.layers;
 
-import com.mycompany.neuralnetwork.cost.Cost;
 import com.mycompany.neuralnetwork.neuron.Neuron;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Random;
 import java.util.stream.DoubleStream;
+import java.util.stream.IntStream;
 import org.nd4j.linalg.api.buffer.DataType;
 import org.nd4j.linalg.api.ndarray.INDArray;
 import org.nd4j.linalg.factory.Nd4j;
@@ -19,60 +19,147 @@ import org.nd4j.linalg.factory.Nd4j;
  *
  * @author dmytr
  */
-public class ConvLayer {
+public class ConvLayer extends HiddenLayer implements IConvLayer {
     
-    private int[] filter_shape;
     private int[] image_shape;
-    private int[] pool_size;
-    private Neuron neuron;
-    private int n_in;
-    private int n_out;
-    private INDArray weights;
-    private INDArray biases;
-    private INDArray z;
+    private int[] kernel;
+    private int numOfFilters;
+    int width;
+    int height;
 
-    public ConvLayer(int[] filter_shape, int[] image_shape, int[] pool_size, Neuron neuron) {
-        this.filter_shape = filter_shape;
+    public ConvLayer(int[] image_shape,int numOfFilters, int[] kernel, Neuron neuron) {
+        super(neuron);
         this.image_shape = image_shape;
-        this.pool_size = pool_size;
-        this.neuron = neuron;
+        this.numOfFilters=numOfFilters;
+        this.kernel = kernel;
+        height=image_shape[2]-(kernel[0]-1);
+        width=image_shape[3]-(kernel[1]-1);
         Random rand=new Random();
-        weights=Nd4j.create(DoubleStream.generate(()->rand.nextGaussian()).limit(filter_shape[2]*filter_shape[3]).toArray(),
-                new long[]{filter_shape[2],filter_shape[3]}, DataType.DOUBLE);
-        biases=Nd4j.create(DoubleStream.generate(()->rand.nextGaussian()).limit(n_out).toArray(),
-                new long[]{n_out}, DataType.DOUBLE);
+        setWeights(Nd4j.create(DoubleStream.generate(()->rand.nextGaussian()).limit(kernel[0]*kernel[1]).toArray(),
+                new long[]{numOfFilters,kernel[0],kernel[1]}, DataType.DOUBLE));
+        setBiases(Nd4j.create(DoubleStream.generate(()->rand.nextGaussian()).limit(width*height).toArray(),
+                new long[]{width*height}, DataType.DOUBLE));
     }
     
     public INDArray feedforward(INDArray activations){
-        z=parseImage(activations).mul(weights).sum(2,3).add(biases);
-        return neuron.fun(z);
+        if(activations.shape().length>3){
+            activations.reshape(numOfFilters,activations.shape()[0],activations.shape()[1]);
+        }
+        setZ(parseImage(activations,kernel,true)
+                .mul(getWeights()).sum(3,4).add(getBiases()));
+        return getActivations();
     }
     
-    public INDArray[] backProp(INDArray nextWeights, INDArray prevActivations, INDArray prevDelta){
-        INDArray delta=nextWeights.mmul(prevDelta).mul(neuron.derivative(z));
-        INDArray nabla_w=parseImage(prevActivations).mul(delta).sum(0,1);
+    public INDArray[] backProp(INDArray nextWeights, INDArray prevActivations, INDArray prevDelta, int[][] deltasPositions){        
+        double[] deltas=new double[width*height];
+        double[] ndArr=prevDelta.reshape(new long[]{prevDelta.shape()[0],1})
+                .mmul(nextWeights.reshape(1,nextWeights.shape()[0])).data().asDouble();
+        for(int i=0;i<deltas.length;i++){
+            for(int j:deltasPositions[i]){
+                deltas[i]+=ndArr[j];
+            }
+        }
+        INDArray delta=Nd4j.create(deltas,new long[]{width*height},DataType.DOUBLE);        
+        INDArray nabla_w=parseImage(prevActivations.reshape(numOfFilters,prevActivations.shape()[0],
+                prevActivations.shape()[1]),kernel,true).mul(delta).sum(1,2);
         return new INDArray[]{delta, nabla_w};
     }
     
-    public INDArray parseImage(INDArray image){
+    public INDArray[] backProp(INDArray nextWeights, INDArray prevActivations, INDArray prevDelta){        
+        INDArray delta=nextWeights.transpose().mmul(prevDelta).mul(getNeuron().derivative(getZ()));
+        INDArray nabla_w=delta.reshape(new int[]{(int)delta.shape()[0],1})
+                .mmul(prevActivations.reshape(
+                        new int[]{1,(int)prevActivations.shape()[0]}));
+        return new INDArray[]{delta, nabla_w};
+    }
+    
+    public INDArray parseImage(INDArray image,int[] kernel, boolean isStrideOne){
         double[] imgArr=image.data().asDouble();
         List<Double> resultList=new ArrayList<>();
-        int filter_height=filter_shape[2];
-        int filter_width=filter_shape[3];
-        int image_height=image_shape[2];
-        int image_width=image_shape[3];
-        for(int row=0;row+filter_height<=image_height;row++){
-            for(int i=0;i+filter_width<=image_width;i++){
-                for(int subRow=0;subRow<filter_height;subRow++){
-                    for(int subCol=0;subCol<filter_width;subCol++){
-                        resultList.add(imgArr[row*image_width+i+subRow*image_width+subCol]); 
+        int kernel_height=kernel[0];
+        int kernel_width=kernel[1];
+        int image_height=(int)image.shape()[1];
+        int image_width=(int)image.shape()[2];
+        int numOfFilters=(int)image.shape()[0];
+        int[] stride=isStrideOne?new int[]{1,1}:kernel;
+        for(int filter=0;filter<numOfFilters;filter+=image.length()/numOfFilters){
+            for(int row=0;row+kernel_height<=image_height;row+=stride[0]){
+                for(int col=0;col+kernel_width<=image_width;col+=stride[1]){
+                    for(int subRow=0;subRow<kernel_height;subRow++){
+                        for(int subCol=0;subCol<kernel_width;subCol++){
+                            resultList.add(imgArr[filter+row*image_width+col+subRow*image_width+subCol]); 
+                        }
                     }
                 }
             }
         }
+        if(!isStrideOne){
+            return Nd4j.create((double[])resultList.stream().mapToDouble(d->d.doubleValue()).toArray(),
+                new long[]{numOfFilters,image_height/kernel_height,image_width/kernel_width,kernel_height,kernel_width},DataType.DOUBLE);
+        }
         return Nd4j.create((double[])resultList.stream().mapToDouble(d->d.doubleValue()).toArray(),
-                new long[]{image_height-(filter_height-1),image_width-(filter_width-1),filter_height,filter_width},DataType.DOUBLE);
+                new long[]{numOfFilters,image_height-(kernel_height-1),image_width-(kernel_width-1),kernel_height,kernel_width},DataType.DOUBLE);
     }
     
+    public int[][] getDeltasPositions(int[] kernel, boolean isStrideOne){
+        INDArray positions=Nd4j.create(IntStream.range(0, height*width).toArray(),
+                new long[]{1,height,width},DataType.INT64);
+        positions=parseImage(positions,kernel,isStrideOne);
+        int[][] result=new int[height*width][];
+        List<Integer> subRes=new ArrayList<>();
+        for(int i=0;i<result.length;i++){
+            //int pos=0;
+            for(int j=0;j<positions.data().asDouble().length;j++){
+                if(positions.data().asDouble()[j]==i){
+                    //result[i][pos]=j;
+                    //pos++;
+                    subRes.add(j/(kernel[0]*kernel[1]));
+                }
+            }
+            result[i]=subRes.stream().mapToInt(n->n).toArray();
+            subRes.clear();
+        }
+        return result;
+    }
+
+    public int[] getImage_shape() {
+        return image_shape;
+    }
+
+    public int getNumOfFilters() {
+        return numOfFilters;
+    }
+
+    public int[] getKernel() {
+        return kernel;
+    }
+
+    public int getWidth() {
+        return width;
+    }
+
+    public int getHeight() {
+        return height;
+    }
+
+    public void setImage_shape(int[] image_shape) {
+        this.image_shape = image_shape;
+    }
+
+    public void setNumOfFilters(int numOfFilters) {
+        this.numOfFilters = numOfFilters;
+    }
+
+    public void setKernel(int[] kernel) {
+        this.kernel = kernel;
+    }
+
+    public void setWidth(int width) {
+        this.width = width;
+    }
+
+    public void setHeight(int height) {
+        this.height = height;
+    }    
     
 }
