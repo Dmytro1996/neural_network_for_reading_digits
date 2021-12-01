@@ -5,9 +5,7 @@
  */
 package com.mycompany.neuralnetwork.layers;
 
-import com.mycompany.neuralnetwork.cost.Cost;
 import com.mycompany.neuralnetwork.cost.LogLikehoodCost;
-import com.mycompany.neuralnetwork.neuron.Neuron;
 import com.mycompany.neuralnetwork.neuron.SoftmaxNeuron;
 
 /**
