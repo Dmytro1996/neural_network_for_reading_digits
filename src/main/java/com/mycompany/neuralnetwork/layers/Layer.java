@@ -15,6 +15,6 @@ import org.nd4j.linalg.api.ndarray.INDArray;
 public interface Layer {
     
     INDArray feedforward(INDArray activations);
-    INDArray[] backProp(INDArray y, INDArray prevActivations, INDArray prevDelta);
+    INDArray[] backProp(INDArray y, INDArray prevActivations, INDArray nextDelta);
     INDArray getActivations();
 }

@@ -22,7 +22,7 @@ public class OutputLayer extends FlatLayer {
         this.cost=cost;
     }
     
-    public INDArray[] backProp(INDArray y, INDArray prevActivations, INDArray prevDelta){
+    public INDArray[] backProp(INDArray y, INDArray prevActivations, INDArray nextDelta){
         INDArray delta=cost.delta(getNeuron().fun(getZ()),y, null);
         INDArray nabla_w=delta.reshape(new int[]{(int)delta.shape()[0],1})
                 .mmul(prevActivations.reshape(new int[]{1,(int)prevActivations.shape()[0]}));

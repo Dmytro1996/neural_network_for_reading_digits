@@ -38,8 +38,8 @@ public class FlatLayer extends HiddenLayer {
         return getActivations();
     }
     
-    public INDArray[] backProp(INDArray nextWeights, INDArray prevActivations, INDArray prevDelta){
-        INDArray delta=nextWeights.transpose().mmul(prevDelta).mul(getNeuron().derivative(getZ()));
+    public INDArray[] backProp(INDArray nextWeights, INDArray prevActivations, INDArray nextDelta){
+        INDArray delta=nextWeights.transpose().mmul(nextDelta).mul(getNeuron().derivative(getZ()));
         INDArray nabla_w=delta.reshape(new int[]{(int)delta.shape()[0],1})
                 .mmul(prevActivations.reshape(new int[]{1,(int)prevActivations.shape()[0]}));
         return new INDArray[]{delta, nabla_w};

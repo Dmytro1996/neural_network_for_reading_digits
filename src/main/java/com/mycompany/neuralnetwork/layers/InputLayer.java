@@ -24,7 +24,7 @@ public class InputLayer implements Layer {
         return activations;
     }
     
-    public INDArray[] backProp(INDArray nextWeights, INDArray prevActivations, INDArray prevDelta){        
+    public INDArray[] backProp(INDArray nextWeights, INDArray prevActivations, INDArray nextDelta){        
         return null;
     } 
     

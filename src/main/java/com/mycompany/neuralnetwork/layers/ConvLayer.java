@@ -50,9 +50,9 @@ public class ConvLayer extends HiddenLayer implements IConvLayer {
         return getActivations();
     }
     
-    public INDArray[] backProp(INDArray nextWeights, INDArray prevActivations, INDArray prevDelta, int[][] deltasPositions){        
+    public INDArray[] backProp(INDArray nextWeights, INDArray prevActivations, INDArray nextDelta, int[][] deltasPositions){        
         double[] deltas=new double[width*height];
-        double[] ndArr=prevDelta.reshape(new long[]{prevDelta.shape()[0],1})
+        double[] ndArr=nextDelta.reshape(new long[]{nextDelta.shape()[0],1})
                 .mmul(nextWeights.reshape(1,nextWeights.shape()[0])).data().asDouble();
         for(int i=0;i<deltas.length;i++){
             for(int j:deltasPositions[i]){
@@ -65,8 +65,8 @@ public class ConvLayer extends HiddenLayer implements IConvLayer {
         return new INDArray[]{delta, nabla_w};
     }
     
-    public INDArray[] backProp(INDArray nextWeights, INDArray prevActivations, INDArray prevDelta){        
-        INDArray delta=nextWeights.transpose().mmul(prevDelta).mul(getNeuron().derivative(getZ()));
+    public INDArray[] backProp(INDArray nextWeights, INDArray prevActivations, INDArray nextDelta){        
+        INDArray delta=nextWeights.transpose().mmul(nextDelta).mul(getNeuron().derivative(getZ()));
         INDArray nabla_w=delta.reshape(new int[]{(int)delta.shape()[0],1})
                 .mmul(prevActivations.reshape(
                         new int[]{1,(int)prevActivations.shape()[0]}));
