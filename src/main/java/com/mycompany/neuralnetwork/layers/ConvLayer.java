@@ -24,8 +24,12 @@ public class ConvLayer extends HiddenLayer implements IConvLayer {
     private int[] image_shape;
     private int[] kernel;
     private int numOfFilters;
-    int width;
-    int height;
+    private int width;
+    private int height;
+    
+    public ConvLayer(Neuron neuron){
+        super(neuron);
+    }
 
     public ConvLayer(int[] image_shape,int numOfFilters, int[] kernel, Neuron neuron) {
         super(neuron);
@@ -85,7 +89,7 @@ public class ConvLayer extends HiddenLayer implements IConvLayer {
         int image_width=(int)image_shape[2];
         int numOfFilters=image_shape[0];
         int[] stride=isStrideOne?new int[]{1,1}:kernel;
-        System.out.println(image.length());
+        //System.out.println(image.length());
         for(int filter=0;filter<numOfFilters;filter++){
             for(int row=0;row+kernel_height<=image_height;row+=stride[0]){
                 for(int col=0;col+kernel_width<=image_width;col+=stride[1]){
@@ -102,7 +106,7 @@ public class ConvLayer extends HiddenLayer implements IConvLayer {
                 }
             }
         }
-        System.out.println(resultList.size());
+        //System.out.println(resultList.size());
         if(!isStrideOne){
             return Nd4j.create((double[])resultList.stream().mapToDouble(d->d.doubleValue()).toArray(),
                 new long[]{numOfFilters,image_height/kernel_height,image_width/kernel_width,kernel_height,kernel_width},DataType.DOUBLE);
