@@ -32,13 +32,13 @@ public class ConvLayer extends HiddenLayer implements IConvLayer {
         this.image_shape = image_shape;
         this.numOfFilters=numOfFilters;
         this.kernel = kernel;
-        height=image_shape[2]-(kernel[0]-1);
-        width=image_shape[3]-(kernel[1]-1);
+        height=image_shape[1]-(kernel[0]-1);
+        width=image_shape[2]-(kernel[1]-1);
         Random rand=new Random();
-        setWeights(Nd4j.create(DoubleStream.generate(()->rand.nextGaussian()).limit(kernel[0]*kernel[1]).toArray(),
+        setWeights(Nd4j.create(DoubleStream.generate(()->rand.nextGaussian()).limit(numOfFilters*kernel[0]*kernel[1]).toArray(),
                 new long[]{numOfFilters,1,1,kernel[0],kernel[1]}, DataType.DOUBLE));
-        setBiases(Nd4j.create(DoubleStream.generate(()->rand.nextGaussian()).limit(width*height).toArray(),
-                new long[]{width*height}, DataType.DOUBLE));
+        setBiases(Nd4j.create(DoubleStream.generate(()->rand.nextGaussian()).limit(numOfFilters*width*height).toArray(),
+                new long[]{numOfFilters*width*height}, DataType.DOUBLE));
     }
     
     public INDArray feedforward(INDArray activations){
