@@ -27,8 +27,9 @@ public class PoolLayer extends ConvLayer{
         /*if(activations.shape().length>3){
             activations.reshape(getNumOfFilters(),activations.shape()[0],activations.shape()[1]);
         }*/
-        setZ(parseImage(activations,getImage_shape(),getKernel(),false)
-                .mul(getWeights()).sum(3,4).add(getBiases()));
-        return getNeuron().fun(getZ());
+         setZ(parseImage(activations,getImage_shape(),getKernel(),false)
+                .mul(getWeights()).sum(3,4));//test ok
+        setZ(getZ().add(getBiases()));
+        return getActivations();
     }
 }
