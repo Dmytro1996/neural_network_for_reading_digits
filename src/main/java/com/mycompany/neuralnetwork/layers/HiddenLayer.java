@@ -52,7 +52,11 @@ public abstract class HiddenLayer implements Layer {
     }
 
     public void setZ(INDArray z) {
-        this.z = z;
+        if(z.shape().length>1){
+            this.z = z.reshape(z.length());
+        } else{
+            this.z=z;
+        }
     }
 
     public void setWeights(INDArray weights) {
