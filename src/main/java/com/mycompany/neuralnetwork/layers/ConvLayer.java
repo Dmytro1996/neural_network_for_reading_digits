@@ -51,8 +51,9 @@ public class ConvLayer extends HiddenLayer implements IConvLayer {
         return getActivations();
     }
     
-    public INDArray[] backProp(INDArray nextWeights, INDArray prevActivations, INDArray nextDelta, int[][] deltasPositions){        
+    public INDArray[] backProp(INDArray nextWeights, INDArray prevActivations, INDArray nextDelta, int[] kernel, boolean isStrideOne){        
         double[] deltas=new double[width*height];
+        int[][] deltasPositions=getDeltasPositions(kernel, isStrideOne);
         double[] ndArr=nextDelta.reshape(new long[]{nextDelta.shape()[0],1})
                 .mmul(nextWeights.reshape(1,nextWeights.shape()[0])).data().asDouble();
         for(int i=0;i<deltas.length;i++){
