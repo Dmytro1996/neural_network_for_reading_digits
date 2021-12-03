@@ -42,11 +42,12 @@ public class ConvLayer extends HiddenLayer implements IConvLayer {
     }
     
     public INDArray feedforward(INDArray activations){
-        if(activations.shape().length>3){
+        /*if(activations.shape().length>3){
             activations.reshape(numOfFilters,activations.shape()[0],activations.shape()[1]);
-        }
-        setZ(parseImage(activations,kernel,true)
-                .mul(getWeights()).sum(3,4).add(getBiases()));
+        }*/
+        setZ(parseImage(activations,image_shape,kernel,true)
+                .mul(getWeights()).sum(3,4));//test
+        setZ(getZ().add(getBiases()));
         return getActivations();
     }
     
@@ -60,8 +61,7 @@ public class ConvLayer extends HiddenLayer implements IConvLayer {
             }
         }
         INDArray delta=Nd4j.create(deltas,new long[]{width*height},DataType.DOUBLE);        
-        INDArray nabla_w=parseImage(prevActivations.reshape(numOfFilters,prevActivations.shape()[0],
-                prevActivations.shape()[1]),kernel,true).mul(delta).sum(1,2);
+        INDArray nabla_w=parseImage(prevActivations,image_shape,kernel,true).mul(delta).sum(1,2);
         return new INDArray[]{delta, nabla_w};
     }
     
@@ -73,26 +73,33 @@ public class ConvLayer extends HiddenLayer implements IConvLayer {
         return new INDArray[]{delta, nabla_w};
     }
     
-    public INDArray parseImage(INDArray image,int[] kernel, boolean isStrideOne){
+    public INDArray parseImage(INDArray image,int[] image_shape, int[] kernel, boolean isStrideOne){
         double[] imgArr=image.data().asDouble();
         List<Double> resultList=new ArrayList<>();
         int kernel_height=kernel[0];
         int kernel_width=kernel[1];
-        int image_height=(int)image.shape()[1];
-        int image_width=(int)image.shape()[2];
-        int numOfFilters=(int)image.shape()[0];
+        int image_height=(int)image_shape[1];
+        int image_width=(int)image_shape[2];
+        int numOfFilters=image_shape[0];
         int[] stride=isStrideOne?new int[]{1,1}:kernel;
-        for(int filter=0;filter<numOfFilters;filter+=image.length()/numOfFilters){
+        System.out.println(image.length());
+        for(int filter=0;filter<numOfFilters;filter++){
             for(int row=0;row+kernel_height<=image_height;row+=stride[0]){
                 for(int col=0;col+kernel_width<=image_width;col+=stride[1]){
                     for(int subRow=0;subRow<kernel_height;subRow++){
                         for(int subCol=0;subCol<kernel_width;subCol++){
-                            resultList.add(imgArr[filter+row*image_width+col+subRow*image_width+subCol]); 
+                            if(image.length()!=numOfFilters*image_height*image_width && image.length()==image_height*image_width){
+                                resultList.add(imgArr[row*image_width+col+subRow*image_width+subCol]);
+                            } else{
+                                resultList.add(imgArr[filter*image_height*image_width
+                                        +row*image_width+col+subRow*image_width+subCol]);
+                            }
                         }
                     }
                 }
             }
         }
+        System.out.println(resultList.size());
         if(!isStrideOne){
             return Nd4j.create((double[])resultList.stream().mapToDouble(d->d.doubleValue()).toArray(),
                 new long[]{numOfFilters,image_height/kernel_height,image_width/kernel_width,kernel_height,kernel_width},DataType.DOUBLE);
@@ -104,7 +111,7 @@ public class ConvLayer extends HiddenLayer implements IConvLayer {
     public int[][] getDeltasPositions(int[] kernel, boolean isStrideOne){
         INDArray positions=Nd4j.create(IntStream.range(0, height*width).toArray(),
                 new long[]{1,height,width},DataType.INT64);
-        positions=parseImage(positions,kernel,isStrideOne);
+        positions=parseImage(positions,new int[]{numOfFilters, height, width}, kernel,isStrideOne);
         int[][] result=new int[height*width][];
         List<Integer> subRes=new ArrayList<>();
         for(int i=0;i<result.length;i++){
