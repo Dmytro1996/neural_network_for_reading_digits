@@ -46,7 +46,7 @@ public class ConvLayer extends HiddenLayer implements IConvLayer {
             activations.reshape(numOfFilters,activations.shape()[0],activations.shape()[1]);
         }*/
         setZ(parseImage(activations,image_shape,kernel,true)
-                .mul(getWeights()).sum(3,4));//test
+                .mul(getWeights()).sum(3,4));//test ok
         setZ(getZ().add(getBiases()));
         return getActivations();
     }
@@ -61,7 +61,9 @@ public class ConvLayer extends HiddenLayer implements IConvLayer {
             }
         }
         INDArray delta=Nd4j.create(deltas,new long[]{width*height},DataType.DOUBLE);        
-        INDArray nabla_w=parseImage(prevActivations,image_shape,kernel,true).mul(delta).sum(1,2);
+        INDArray nabla_w=parseImage(prevActivations,image_shape,kernel,true)//test ok
+                .mul(delta.reshape(numOfFilters, height, width,1,1)).sum(1,2)
+                .reshape(numOfFilters,1,1,kernel[0],kernel[1]);
         return new INDArray[]{delta, nabla_w};
     }
     
