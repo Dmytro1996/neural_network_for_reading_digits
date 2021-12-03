@@ -24,10 +24,10 @@ public class PoolLayer extends ConvLayer{
     }
     
    public INDArray feedforward(INDArray activations){
-        if(activations.shape().length>3){
+        /*if(activations.shape().length>3){
             activations.reshape(getNumOfFilters(),activations.shape()[0],activations.shape()[1]);
-        }
-        setZ(parseImage(activations,getKernel(),false)
+        }*/
+        setZ(parseImage(activations,getImage_shape(),getKernel(),false)
                 .mul(getWeights()).sum(3,4).add(getBiases()));
         return getNeuron().fun(getZ());
     }
