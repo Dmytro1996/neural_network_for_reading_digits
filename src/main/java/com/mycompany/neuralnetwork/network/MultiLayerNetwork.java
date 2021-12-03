@@ -5,8 +5,10 @@
  */
 package com.mycompany.neuralnetwork.network;
 
+import com.mycompany.neuralnetwork.layers.ConvLayer;
 import com.mycompany.neuralnetwork.layers.HiddenLayer;
 import com.mycompany.neuralnetwork.layers.Layer;
+import com.mycompany.neuralnetwork.layers.PoolLayer;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
@@ -62,7 +64,7 @@ public class MultiLayerNetwork {
     public void update_mini_batch(List<INDArray[]> mini_batch, double eta, double lambda, int lenTrainData){
         INDArray[][] nablas=mini_batch.parallelStream().map(mb->backProp(mb[0],mb[1]))
                 .reduce((acc,x)->{
-            for(int i=0;i<numOfLayers-1;i++){                
+            for(int i=0;i<numOfLayers-1;i++){ 
                 acc[0][i]=acc[0][i].add(x[0][i]);
                 acc[1][i]=acc[1][i].add(x[1][i]);
             }
@@ -85,9 +87,15 @@ public class MultiLayerNetwork {
         }
         result[layers.size()-1]=layers.get(layers.size()-1).backProp(y, layers.get(layers.size()-2)
                 .getActivations(), null);
-        for(int i=layers.size()-2;i>0;i--){
-            result[layers.size()-1]=layers.get(layers.size()-i).backProp(y, layers.get(layers.size()-i-1)
-                    .getActivations(), result[layers.size()-i+1][0]);
+        for(int i=numOfLayers-2;i>0;i--){
+            if(layers.get(i) instanceof ConvLayer && layers.get(i+1) instanceof ConvLayer){
+                result[i]=((ConvLayer)layers.get(i)).backProp(y, layers.get(i-1)
+                    .getActivations(), result[i+1][0], ((ConvLayer)layers.get(i+1)).getKernel(),
+                    !(layers.get(i+1) instanceof PoolLayer));
+            } else{
+                result[i]=layers.get(i).backProp(y, layers.get(i-1)
+                    .getActivations(), result[i+1][0]);
+            }
         }
         return result;        
     }
