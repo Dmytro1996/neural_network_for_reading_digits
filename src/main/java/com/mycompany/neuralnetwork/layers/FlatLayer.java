@@ -34,7 +34,7 @@ public class FlatLayer extends HiddenLayer {
     }
     
     public INDArray feedforward(INDArray activations){
-        setZ(activations.mmul(getWeights()).add(getBiases()));
+        setZ(getWeights().mmul(activations).add(getBiases()));
         return getActivations();
     }
     
