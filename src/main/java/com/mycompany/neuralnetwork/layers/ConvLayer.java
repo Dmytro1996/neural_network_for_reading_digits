@@ -36,7 +36,7 @@ public class ConvLayer extends HiddenLayer implements IConvLayer {
         width=image_shape[3]-(kernel[1]-1);
         Random rand=new Random();
         setWeights(Nd4j.create(DoubleStream.generate(()->rand.nextGaussian()).limit(kernel[0]*kernel[1]).toArray(),
-                new long[]{numOfFilters,kernel[0],kernel[1]}, DataType.DOUBLE));
+                new long[]{numOfFilters,1,1,kernel[0],kernel[1]}, DataType.DOUBLE));
         setBiases(Nd4j.create(DoubleStream.generate(()->rand.nextGaussian()).limit(width*height).toArray(),
                 new long[]{width*height}, DataType.DOUBLE));
     }
