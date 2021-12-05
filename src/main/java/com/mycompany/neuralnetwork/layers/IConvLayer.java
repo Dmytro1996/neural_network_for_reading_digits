@@ -13,5 +13,5 @@ import org.nd4j.linalg.api.ndarray.INDArray;
  */
 public interface IConvLayer extends Layer {
     
-    INDArray[] backProp(INDArray nextWeights, INDArray prevActivations, INDArray nextDelta, int[] kernel, boolean isStrideOne);
+    INDArray[] backPropConv(INDArray nextWeights, INDArray prevActivations, INDArray nextDelta);
 }
