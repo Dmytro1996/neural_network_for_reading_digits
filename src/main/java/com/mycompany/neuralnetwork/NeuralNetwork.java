@@ -17,6 +17,11 @@ import com.google.gson.Gson;
 import com.mycompany.neuralnetwork.cost.CrossEntropyCost;
 import com.mycompany.neuralnetwork.dataloader.DataLoader;
 import com.mycompany.neuralnetwork.layers.ConvLayer;
+import com.mycompany.neuralnetwork.layers.FlatLayer;
+import com.mycompany.neuralnetwork.layers.InputLayer;
+import com.mycompany.neuralnetwork.layers.OutputLayer;
+import com.mycompany.neuralnetwork.layers.PoolLayer;
+import com.mycompany.neuralnetwork.network.MultiLayerNetwork;
 import com.mycompany.neuralnetwork.network.NetworkEnhanced;
 import com.mycompany.neuralnetwork.network.NetworkNd4j;
 import com.mycompany.neuralnetwork.neuron.MaxNeuron;
@@ -30,12 +35,22 @@ import java.util.Random;
 import java.util.stream.Collectors;
 import java.util.stream.DoubleStream;
 import java.util.stream.IntStream;
+import org.deeplearning4j.datasets.iterator.impl.MnistDataSetIterator;
+import org.deeplearning4j.eval.Evaluation;
+import org.deeplearning4j.nn.conf.BackpropType;
 import org.deeplearning4j.nn.conf.MultiLayerConfiguration;
 import org.deeplearning4j.nn.conf.NeuralNetConfiguration;
+import org.deeplearning4j.nn.conf.layers.DenseLayer;
+//import org.deeplearning4j.nn.conf.layers.OutputLayer;
+//import org.deeplearning4j.nn.multilayer.MultiLayerNetwork;
 import org.deeplearning4j.nn.weights.WeightInit;
+import org.nd4j.linalg.activations.Activation;
 import org.nd4j.linalg.api.buffer.DataType;
 import org.nd4j.linalg.api.ndarray.INDArray;
+import org.nd4j.linalg.dataset.api.iterator.DataSetIterator;
 import org.nd4j.linalg.factory.Nd4j;
+import org.nd4j.linalg.indexing.NDArrayIndex;
+import org.nd4j.linalg.lossfunctions.LossFunctions;
 import org.nd4j.linalg.ops.transforms.Transforms;
 /**
  *
@@ -65,19 +80,35 @@ public class NeuralNetwork {
         System.out.println(matrix.toString());
         //System.out.println(Matrices.applyFunc(matrix, (i)->i*2));
         //System.out.println(matrix.sum(0).toString());
-        System.out.println("Combine lists result:");
+        //System.out.println("Combine lists result:");
         //System.out.println(Matrixes.combineElements(Arrays.asList(new Integer[]{1,2,3,4,5}),Arrays.asList(new Integer[]{11,12,30,24,50})));
-        Matrix input=new Matrix(Arrays.asList(new Integer[]{1,1,1}),new int[]{3},Double.class);
-        Matrix output=new Matrix(Arrays.asList(new Integer[]{1,1}),new int[]{2},Double.class);
-        INDArray matrix100=Nd4j.create(IntStream.iterate(1, (i)->i+1).limit(100).toArray(),new long[]{10,10}, DataType.INT32);
-        INDArray pseudo_weights=Nd4j.create(IntStream.generate(()->2).limit(25).toArray(),new long[]{5,5},DataType.INT32);
-        ConvLayer conv=new ConvLayer(new int[]{1,1,5,5},new int[]{1,1,10,10},new int[]{2,2},new SigmoidNeuron());
-        System.out.println("Matrix100:\n"+conv.parseImage(matrix100));
-        System.out.println("Matrix100*pseudo_weights:\n"+conv.parseImage(matrix100).mul(pseudo_weights));
-        System.out.println(conv.parseImage(matrix100).sum(2,3));
+        //Matrix input=new Matrix(Arrays.asList(new Integer[]{1,1,1}),new int[]{3},Double.class);
+        //Matrix output=new Matrix(Arrays.asList(new Integer[]{1,1}),new int[]{2},Double.class);
+        INDArray matrix100=Nd4j.create(IntStream.iterate(1, (i)->i+1).limit(100).toArray(),new long[]{100}, DataType.INT32);        
+        INDArray pseudo_weights=Nd4j.create(IntStream.generate(()->2).limit(50).toArray(),new long[]{2,1,1,5,5},DataType.INT32);
+        INDArray pseudo_deltas=Nd4j.create(IntStream.generate(()->2).limit(72).toArray(),new long[]{2,6,6,1,1},DataType.INT32);        
+        ConvLayer conv=new ConvLayer(new int[]{1,10,10},1,new int[]{5,5},new SigmoidNeuron());
+        //System.out.println("matrix100*pseudo_weights:"+matrix100.mul(pseudo_weights));
+        System.out.println("Matrix100 parsed:\n"+conv.parseImage(matrix100,new int[]{1,10,10},new int[]{5,5},true));
+        System.out.println("Deltas positions:\n"+Arrays.stream(conv.getDeltasPositions(new int[]{3,3},true))
+                .map(arr->Arrays.toString(arr)).collect(Collectors.joining(",")));
+        System.out.println("Matrix100*pseudo_weights:\n"+conv.parseImage(matrix100,new int[]{2,10,10},new int[]{5,5},true).mul(pseudo_weights).sum(3,4));
+        System.out.println("Matrix100_sum(1,2)*2:\n"+conv.parseImage(matrix100,new int[]{2,10,10},new int[]{5,5},true).sum(1,2).mul(2));
+        System.out.println("Matrix100*pseudo_deltas:\n"+conv.parseImage(matrix100,new int[]{2,10,10},new int[]{5,5},true).mul(pseudo_deltas).sum(1,2));
+        INDArray twos=Nd4j.ones(3,2,1).mul(2);
+        INDArray threes=Nd4j.ones(3,1,2).mul(3);
+        System.out.println("Mmul result:"+Nd4j.matmul(twos, threes));
+        System.out.println(""+matrix100.reshape(10,10).get(NDArrayIndex.point(0)));
+        //Nd4j.matmul(twos, threes);
+        //System.out.println(conv.parseImage(matrix100,new int[]{5,5},new int[]{10,10},true).sum(2,3));
         //Network net=new Network(new int[]{784,30,10});
         //NetworkNd4j net=new NetworkNd4j(new int[]{784,30,10});
-        NetworkEnhanced net=new NetworkEnhanced(new int[]{784,30,10}, new CrossEntropyCost(), new SigmoidNeuron());
+        //NetworkEnhanced net=new NetworkEnhanced(new int[]{784,30,10}, new CrossEntropyCost(), new SigmoidNeuron());
+        MultiLayerNetwork net=new MultiLayerNetwork(new InputLayer(),
+                new ConvLayer(new int[]{20,28,28},20,new int[]{5,5},new SigmoidNeuron()),
+                new PoolLayer(new int[]{20,24,24},20,new int[]{2,2},new MaxNeuron()),
+                new FlatLayer(2880,100,new SigmoidNeuron()),
+                new OutputLayer(100,10,new SigmoidNeuron(),new CrossEntropyCost()));
         /*System.out.println("Feedforward:"+
                 net.feedforward(new Matrix(Arrays.asList(new Integer[]{1,0,1}),new int[]{3},Double.class)));
         System.out.println("Sigmoid:"+net.sigmoid(10));
@@ -141,8 +172,9 @@ public class NeuralNetwork {
         //net.SGD(training_data, 5, 10, 0.5d, test_data.subList(0, 1000));
         //net.SGD(training_data_nd4j, 10, 10, 0.5d, test_data_nd4j);
         //net.SGD(training_data_nd4j, 10, 10, 0.5d, 5d, false, false, false, test_data_nd4j);
-        //new Adagrad().optimize(net, training_data_nd4j.subList(0, 1000), 10, 10, 0.00005d, 5d, false, false, false, test_data_nd4j.subList(0, 1000));
-        new RMSprop().optimize(net, training_data_nd4j.subList(0, 1000), 10, 10, 0.001d, 0.9d, false, false, false, test_data_nd4j.subList(0, 1000));
+        //new Adagrad().optimize(net, training_data_nd4j, 10, 10, 0.00005d, 5d, false, false, false, test_data_nd4j);
+        //new RMSprop().optimize(net, training_data_nd4j.subList(0, 1000), 10, 10, 0.001d, 0.9d, false, false, false, test_data_nd4j.subList(0, 1000));
+        net.SGD(training_data_nd4j.subList(0, 10), 10, 10, 0.5d, 5d, test_data_nd4j.subList(0, 10));
         //System.out.println(training_data_nd4j.get(0)[0]);
         //System.out.println(Arrays.toString(Nd4j.create(new double[]{0.76498521,0.28495175,2.25854695},
         //        new long[]{3L},DataType.DOUBLE).mul(2.24175968).data().asDouble()));
@@ -221,6 +253,21 @@ public class NeuralNetwork {
         net.setBiases(biases);
         net.setWeights(weights);
         System.out.println("Backpropagation check:"+net.backprop(input, output));*/
+        /*DataSetIterator mnistTrain=new MnistDataSetIterator(128,true,123);
+        DataSetIterator mnistTest=new MnistDataSetIterator(128,false,123);
+        MultiLayerConfiguration config=new NeuralNetConfiguration.Builder().activation(Activation.SIGMOID)
+                .weightInit(WeightInit.XAVIER).l2(0.0001).seed(123).list()
+                .layer(0, new DenseLayer.Builder().nIn(784).nOut(30).build())
+                .layer(1, new DenseLayer.Builder().nIn(30).nOut(10).build())
+                .layer(2, new OutputLayer.Builder(LossFunctions.LossFunction.NEGATIVELOGLIKELIHOOD)
+                        .activation(Activation.SOFTMAX).nIn(30).nOut(10).build())
+                .build();*/
+        //MultiLayerNetwork model=new MultiLayerNetwork(config);
+        //model.init();
+        //model.fit(mnistTest);
+        //Evaluation eval=model.evaluate(mnistTest);
+        //System.out.println(eval.stats());
+        
     }
     
 }
