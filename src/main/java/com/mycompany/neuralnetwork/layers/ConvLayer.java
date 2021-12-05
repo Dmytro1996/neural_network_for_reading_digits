@@ -7,6 +7,7 @@ package com.mycompany.neuralnetwork.layers;
 
 import com.mycompany.neuralnetwork.neuron.Neuron;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 import java.util.Random;
 import java.util.stream.DoubleStream;
@@ -26,6 +27,7 @@ public class ConvLayer extends HiddenLayer implements IConvLayer {
     private int numOfFilters;
     private int width;
     private int height;
+    private int[][] deltasPositions;
     
     public ConvLayer(Neuron neuron){
         super(neuron);
@@ -55,14 +57,20 @@ public class ConvLayer extends HiddenLayer implements IConvLayer {
         return getActivations();
     }
     
-    public INDArray[] backProp(INDArray nextWeights, INDArray prevActivations, INDArray nextDelta, int[] kernel, boolean isStrideOne){        
-        double[] deltas=new double[width*height];
-        int[][] deltasPositions=getDeltasPositions(kernel, isStrideOne);
-        double[] ndArr=nextDelta.reshape(new long[]{nextDelta.shape()[0],1})
-                .mmul(nextWeights.reshape(1,nextWeights.shape()[0])).data().asDouble();
+    public INDArray[] backPropConv(INDArray nextWeights, INDArray prevActivations, INDArray nextDelta){        
+        double[] deltas=new double[numOfFilters*width*height];
+        double[] ndArr=Nd4j.matmul(nextDelta.reshape(new long[]{numOfFilters,nextDelta.shape()[0]/numOfFilters,1})//test
+                ,nextWeights.reshape(numOfFilters,1,nextWeights.shape()[3]*nextWeights.shape()[4])).data().asDouble();
         for(int i=0;i<deltas.length;i++){
+            try{
             for(int j:deltasPositions[i]){
                 deltas[i]+=ndArr[j];
+            }
+            } catch(NullPointerException e){
+                System.out.println("Iteration:"+i);
+                System.out.println("deltasPositions==null:"+(deltasPositions==null));
+                System.out.println("deltasPositions[i]:"+Arrays.toString(deltasPositions[i]));
+                throw new NullPointerException();
             }
         }
         INDArray delta=Nd4j.create(deltas,new long[]{width*height},DataType.DOUBLE);        
@@ -89,7 +97,7 @@ public class ConvLayer extends HiddenLayer implements IConvLayer {
         int image_width=(int)image_shape[2];
         int numOfFilters=image_shape[0];
         int[] stride=isStrideOne?new int[]{1,1}:kernel;
-        //System.out.println(image.length());
+        System.out.println("Image length:"+image.length());
         for(int filter=0;filter<numOfFilters;filter++){
             for(int row=0;row+kernel_height<=image_height;row+=stride[0]){
                 for(int col=0;col+kernel_width<=image_width;col+=stride[1]){
@@ -106,7 +114,7 @@ public class ConvLayer extends HiddenLayer implements IConvLayer {
                 }
             }
         }
-        //System.out.println(resultList.size());
+        System.out.println("result size:"+resultList.size());
         if(!isStrideOne){
             return Nd4j.create((double[])resultList.stream().mapToDouble(d->d.doubleValue()).toArray(),
                 new long[]{numOfFilters,image_height/kernel_height,image_width/kernel_width,kernel_height,kernel_width},DataType.DOUBLE);
@@ -121,18 +129,22 @@ public class ConvLayer extends HiddenLayer implements IConvLayer {
         positions=parseImage(positions,new int[]{numOfFilters, height, width}, kernel,isStrideOne);
         int[][] result=new int[height*width][];
         List<Integer> subRes=new ArrayList<>();
+        System.out.println("getDeltasPositions before loop");
+        System.out.println("getDeltasPositions positions.length:"+positions.length());
         for(int i=0;i<result.length;i++){
             //int pos=0;
             for(int j=0;j<positions.data().asDouble().length;j++){
-                if(positions.data().asDouble()[j]==i){
+                if(positions.data().asDouble()[j]==i){                    
                     //result[i][pos]=j;
                     //pos++;
                     subRes.add(j/(kernel[0]*kernel[1]));
                 }
             }
+            System.out.print("-");
             result[i]=subRes.stream().mapToInt(n->n).toArray();
             subRes.clear();
         }
+        System.out.println("getDeltasPositions ended");
         return result;
     }
 
@@ -156,6 +168,10 @@ public class ConvLayer extends HiddenLayer implements IConvLayer {
         return height;
     }
 
+    public int[][] getDeltasPositions() {
+        return deltasPositions;
+    }
+
     public void setImage_shape(int[] image_shape) {
         this.image_shape = image_shape;
     }
@@ -175,5 +191,9 @@ public class ConvLayer extends HiddenLayer implements IConvLayer {
     public void setHeight(int height) {
         this.height = height;
     }    
+
+    public void setDeltasPositions(int[][] deltasPositions) {
+        this.deltasPositions = deltasPositions;
+    }
     
 }
