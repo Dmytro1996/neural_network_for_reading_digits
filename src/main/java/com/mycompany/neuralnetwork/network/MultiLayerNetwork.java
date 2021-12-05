@@ -29,6 +29,7 @@ public class MultiLayerNetwork {
     public MultiLayerNetwork(Layer...layers){
         this.layers=new ArrayList<>(Arrays.asList(layers));
         this.numOfLayers=layers.length;
+        setDeltasPositions();
     }
     
     public INDArray feedforward(INDArray activations){
@@ -89,11 +90,11 @@ public class MultiLayerNetwork {
                 .getActivations(), null);
         for(int i=numOfLayers-2;i>0;i--){
             if(layers.get(i) instanceof ConvLayer && layers.get(i+1) instanceof ConvLayer){
-                result[i]=((ConvLayer)layers.get(i)).backProp(y, layers.get(i-1)
-                    .getActivations(), result[i+1][0], ((ConvLayer)layers.get(i+1)).getKernel(),
-                    !(layers.get(i+1) instanceof PoolLayer));
+                result[i]=((ConvLayer)layers.get(i)).backPropConv(((HiddenLayer)layers.get(i+1)).getWeights(),
+                     layers.get(i-1).getActivations(),
+                     result[i+1][0]);
             } else{
-                result[i]=layers.get(i).backProp(y, layers.get(i-1)
+                result[i]=layers.get(i).backProp(((HiddenLayer)layers.get(i+1)).getWeights(), layers.get(i-1)
                     .getActivations(), result[i+1][0]);
             }
         }
@@ -104,6 +105,18 @@ public class MultiLayerNetwork {
         return test_data.parallelStream().filter(c->
                 feedforward(c[0]).argMax(0).data().asInt()[0]==c[1].data().asInt()[0])
                 .count();
+    }
+    
+    public void setDeltasPositions(){
+        for(int i=1;i<layers.size()-1;i++){
+            System.out.println("setDeltasPositions iteration:"+i);
+            if(layers.get(i) instanceof ConvLayer && layers.get(i+1) instanceof ConvLayer){
+                ((ConvLayer)layers.get(i)).setDeltasPositions(
+                        ((ConvLayer)layers.get(i)).getDeltasPositions(((ConvLayer)layers.get(i+1)).getKernel(),
+                                !(layers.get(i+1) instanceof PoolLayer)));
+            }
+        }
+        System.out.println("setDeltasPositions ended");
     }
     
 }
