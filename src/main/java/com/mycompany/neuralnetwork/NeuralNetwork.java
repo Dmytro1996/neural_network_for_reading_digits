@@ -49,6 +49,7 @@ import org.nd4j.linalg.api.buffer.DataType;
 import org.nd4j.linalg.api.ndarray.INDArray;
 import org.nd4j.linalg.dataset.api.iterator.DataSetIterator;
 import org.nd4j.linalg.factory.Nd4j;
+import org.nd4j.linalg.indexing.INDArrayIndex;
 import org.nd4j.linalg.indexing.NDArrayIndex;
 import org.nd4j.linalg.lossfunctions.LossFunctions;
 import org.nd4j.linalg.ops.transforms.Transforms;
@@ -87,9 +88,11 @@ public class NeuralNetwork {
         INDArray matrix100=Nd4j.create(IntStream.iterate(1, (i)->i+1).limit(100).toArray(),new long[]{100}, DataType.INT32);        
         INDArray pseudo_weights=Nd4j.create(IntStream.generate(()->2).limit(50).toArray(),new long[]{2,1,1,5,5},DataType.INT32);
         INDArray pseudo_deltas=Nd4j.create(IntStream.generate(()->2).limit(72).toArray(),new long[]{2,6,6,1,1},DataType.INT32);        
-        ConvLayer conv=new ConvLayer(new int[]{1,10,10},1,new int[]{5,5},new SigmoidNeuron());
+        ConvLayer conv=new ConvLayer(new int[]{1,10,10},2,new int[]{5,5},new SigmoidNeuron());
+        conv.setWeights(pseudo_weights);
         //System.out.println("matrix100*pseudo_weights:"+matrix100.mul(pseudo_weights));
         System.out.println("Matrix100 parsed:\n"+conv.parseImage(matrix100,new int[]{1,10,10},new int[]{5,5},true));
+        System.out.println("Matrix100 mulConv:\n"+conv.mulConv(matrix100));
         System.out.println("Deltas positions:\n"+Arrays.stream(conv.getDeltasPositions(new int[]{3,3},true))
                 .map(arr->Arrays.toString(arr)).collect(Collectors.joining(",")));
         System.out.println("Matrix100*pseudo_weights:\n"+conv.parseImage(matrix100,new int[]{2,10,10},new int[]{5,5},true).mul(pseudo_weights).sum(3,4));
@@ -98,7 +101,20 @@ public class NeuralNetwork {
         INDArray twos=Nd4j.ones(3,2,1).mul(2);
         INDArray threes=Nd4j.ones(3,1,2).mul(3);
         System.out.println("Mmul result:"+Nd4j.matmul(twos, threes));
-        System.out.println(""+matrix100.reshape(10,10).get(NDArrayIndex.point(0)));
+        INDArray pseudo_weights_short=Nd4j.create(IntStream.generate(()->2).limit(25).toArray(),new long[]{5,5},DataType.INT32);
+        matrix100=matrix100.reshape(10,10);
+        matrix100.put(new INDArrayIndex[]{NDArrayIndex.interval(0,5),
+            NDArrayIndex.interval(0,5)},matrix100.get(NDArrayIndex.interval(0,5),
+                    NDArrayIndex.interval(0,5)).mul(pseudo_weights_short));
+        System.out.println("Matrix100 updated:"+matrix100);
+        System.out.println("pseudo_weights get:"+pseudo_weights.get(NDArrayIndex.interval(0,1),
+                NDArrayIndex.interval(0,1),
+                NDArrayIndex.interval(0,1)));
+        INDArray matrix10=Nd4j.create(IntStream.iterate(1, (i)->i+1).limit(10).toArray(),new long[]{10}, DataType.INT32);
+        INDArray pool=Nd4j.create(new int[]{1,2,3,4},new long[]{2,2},DataType.INT32);
+        INDArray delta=Nd4j.matmul(matrix10.reshape(new long[]{1,matrix10.shape()[0]/1,1})//test
+                ,pool.reshape(1,1,pool.shape()[1]*pool.shape()[0]));
+        System.out.println("Deltas:"+delta.reshape(10,2,2));
         //Nd4j.matmul(twos, threes);
         //System.out.println(conv.parseImage(matrix100,new int[]{5,5},new int[]{10,10},true).sum(2,3));
         //Network net=new Network(new int[]{784,30,10});
@@ -122,16 +138,16 @@ public class NeuralNetwork {
         System.out.println("CrossEntropyCost:"+new CrossEntropyCost().delta(Nd4j.ones(10), Nd4j.zeros(10), null));
         System.out.println("Max:"+Transforms.max(Nd4j.create(new int[]{1,-1,-2,3,4,-1,5,0,7},new long[]{3,3},DataType.INT32),0));
         System.out.println("Max derivative:"+new MaxNeuron().derivative(Nd4j.create(new int[]{1,-1,-2,3,4,-1,5,0,7},new long[]{3,3},DataType.INT32)));
-        List<INDArray[]> training_data_nd4j=DataLoader.loadTrainingDataAsINDArrays(1);
-        List<INDArray[]> test_data_nd4j=DataLoader.loadTestDataAsINDArrays();
+        //List<INDArray[]> training_data_nd4j=DataLoader.loadTrainingDataAsINDArrays(1);
+        //List<INDArray[]> test_data_nd4j=DataLoader.loadTestDataAsINDArrays();
         //net.setWeights(Arrays.asList(new INDArray[]{Nd4j.ones(new int[]{1}).castTo(DataType.DOUBLE)}));
         //net.setBiases(Arrays.asList(new INDArray[]{Nd4j.ones(new int[]{1}).castTo(DataType.DOUBLE)}));
-        /*List<INDArray[]> training_data_nd4j=IntStream.range(0, 1000).boxed().map(
+        List<INDArray[]> training_data_nd4j=IntStream.range(0, 1000).boxed().map(
                 i->new INDArray[]{Nd4j.ones(new long[]{1}).castTo(DataType.DOUBLE),
                     Nd4j.zeros(new long[]{1}).castTo(DataType.DOUBLE)}).collect(Collectors.toList());
         List<INDArray[]> test_data_nd4j=IntStream.range(0, 1000).boxed().map(
                 i->new INDArray[]{Nd4j.ones(new long[]{1}).castTo(DataType.DOUBLE),
-                    Nd4j.zeros(new long[]{1}).castTo(DataType.DOUBLE)}).collect(Collectors.toList());*/
+                    Nd4j.zeros(new long[]{1}).castTo(DataType.DOUBLE)}).collect(Collectors.toList());
         //System.out.println(test_data_nd4j.get(0)[1]);
         //System.out.println(net.vectorized_result(test_data_nd4j.get(0)[1]));
         //test_data.stream().limit(100).forEach(m->System.out.println("Elements"+m[1].getElements()));
