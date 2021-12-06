@@ -15,6 +15,8 @@ import java.util.stream.IntStream;
 import org.nd4j.linalg.api.buffer.DataType;
 import org.nd4j.linalg.api.ndarray.INDArray;
 import org.nd4j.linalg.factory.Nd4j;
+import org.nd4j.linalg.indexing.INDArrayIndex;
+import org.nd4j.linalg.indexing.NDArrayIndex;
 
 /**
  *
@@ -58,7 +60,7 @@ public class ConvLayer extends HiddenLayer implements IConvLayer {
     }
     
     public INDArray[] backPropConv(INDArray nextWeights, INDArray prevActivations, INDArray nextDelta){        
-        double[] deltas=new double[numOfFilters*width*height];
+        /*double[] deltas=new double[numOfFilters*width*height];
         double[] ndArr=Nd4j.matmul(nextDelta.reshape(new long[]{numOfFilters,nextDelta.shape()[0]/numOfFilters,1})//test
                 ,nextWeights.reshape(numOfFilters,1,nextWeights.shape()[3]*nextWeights.shape()[4])).data().asDouble();
         for(int i=0;i<deltas.length;i++){
@@ -73,11 +75,13 @@ public class ConvLayer extends HiddenLayer implements IConvLayer {
                 throw new NullPointerException();
             }
         }
-        INDArray delta=Nd4j.create(deltas,new long[]{width*height},DataType.DOUBLE);        
+        INDArray delta=Nd4j.create(deltas,new long[]{width*height},DataType.DOUBLE);*/
+        INDArray delta=Nd4j.matmul(nextDelta.reshape(new long[]{numOfFilters,nextDelta.shape()[0]/numOfFilters,1})//test
+                ,nextWeights.reshape(numOfFilters,1,nextWeights.shape()[3]*nextWeights.shape()[4]));        
         INDArray nabla_w=parseImage(prevActivations,image_shape,kernel,true)//test ok
                 .mul(delta.reshape(numOfFilters, height, width,1,1)).sum(1,2)
                 .reshape(numOfFilters,1,1,kernel[0],kernel[1]);
-        return new INDArray[]{delta, nabla_w};
+        return new INDArray[]{delta.reshape(delta.length()), nabla_w};
     }
     
     public INDArray[] backProp(INDArray nextWeights, INDArray prevActivations, INDArray nextDelta){        
@@ -87,6 +91,36 @@ public class ConvLayer extends HiddenLayer implements IConvLayer {
                         new int[]{1,(int)prevActivations.shape()[0]}));
         return new INDArray[]{delta, nabla_w};
     }
+    
+    public INDArray mulConv(INDArray image){
+        INDArray input=image.dup().reshape(image_shape);
+        INDArray result=Nd4j.zeros(numOfFilters,height,width,kernel[0],kernel[1]);
+        for(int filter=0;filter<numOfFilters;filter++){
+            for(int row=0;row<height;row++){
+                for(int col=0;col<width;col++){
+                    int currentFilter=image_shape[0]==1?0:filter;
+                    result.put(new INDArrayIndex[]{
+                        NDArrayIndex.interval(filter,filter+1),
+                        NDArrayIndex.point(row),
+                        NDArrayIndex.point(col),
+                        NDArrayIndex.all(),NDArrayIndex.all()
+                    },input.get(new INDArrayIndex[]{
+                        NDArrayIndex.interval(currentFilter,currentFilter+1),
+                        //NDArrayIndex.all(),NDArrayIndex.all(),
+                        NDArrayIndex.interval(row,row+kernel[0]),
+                        NDArrayIndex.interval(col,col+kernel[1])
+                    }).mul(getWeights().reshape(numOfFilters,kernel[0],kernel[1])
+                            .get(NDArrayIndex.interval(currentFilter,currentFilter+1),
+                                    NDArrayIndex.all(),NDArrayIndex.all())));
+                }
+            }
+        }
+        return result.sum(3,4);
+    }
+    
+    /*public INDArray getDeltas(INDArray nextDelta){
+        
+    }*/
     
     public INDArray parseImage(INDArray image,int[] image_shape, int[] kernel, boolean isStrideOne){
         double[] imgArr=image.data().asDouble();
