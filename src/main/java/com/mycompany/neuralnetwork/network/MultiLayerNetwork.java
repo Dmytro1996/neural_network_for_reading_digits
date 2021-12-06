@@ -29,7 +29,7 @@ public class MultiLayerNetwork {
     public MultiLayerNetwork(Layer...layers){
         this.layers=new ArrayList<>(Arrays.asList(layers));
         this.numOfLayers=layers.length;
-        setDeltasPositions();
+        //setDeltasPositions();
     }
     
     public INDArray feedforward(INDArray activations){
