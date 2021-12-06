@@ -35,13 +35,13 @@ public class PoolLayer extends ConvLayer{
                 new long[]{numOfFilters*getWidth()*getHeight()}, DataType.DOUBLE));
     }
     
-   public INDArray feedforward(INDArray activations){
+   //public INDArray feedforward(INDArray activations){
         /*if(activations.shape().length>3){
             activations.reshape(getNumOfFilters(),activations.shape()[0],activations.shape()[1]);
         }*/
-         setZ(parseImage(activations,getImage_shape(),getKernel(),false)
+     /*    setZ(parseImage(activations,getImage_shape(),getKernel(),false)
                 .mul(getWeights()).sum(3,4));//test ok
         setZ(getZ().add(getBiases()));
         return getActivations();
-    }
+    }*/
 }
