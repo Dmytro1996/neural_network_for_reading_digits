@@ -53,8 +53,9 @@ public class ConvLayer extends HiddenLayer implements IConvLayer {
         /*if(activations.shape().length>3){
             activations.reshape(numOfFilters,activations.shape()[0],activations.shape()[1]);
         }*/
-        setZ(parseImage(activations,image_shape,kernel,true)
-                .mul(getWeights()).sum(3,4));//test ok
+        /*setZ(parseImage(activations,image_shape,kernel,true)
+                .mul(getWeights()).sum(3,4));*///test ok
+        setZ(mulConv(activations));
         setZ(getZ().add(getBiases()));
         return getActivations();
     }
