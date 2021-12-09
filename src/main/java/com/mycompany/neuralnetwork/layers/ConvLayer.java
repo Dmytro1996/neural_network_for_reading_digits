@@ -50,13 +50,7 @@ public class ConvLayer extends HiddenLayer implements IConvLayer {
     }
     
     public INDArray feedforward(INDArray activations){
-        /*if(activations.shape().length>3){
-            activations.reshape(numOfFilters,activations.shape()[0],activations.shape()[1]);
-        }*/
-        /*setZ(parseImage(activations,image_shape,kernel,true)
-                .mul(getWeights()).sum(3,4));*///test ok
-        setZ(mulConv(activations));
-        setZ(getZ().add(getBiases()));
+        setZ(Nd4j.toFlattened(mulConv(activations)).add(getBiases()));
         return getActivations();
     }
     
@@ -93,35 +87,8 @@ public class ConvLayer extends HiddenLayer implements IConvLayer {
         return new INDArray[]{delta, nabla_w};
     }
     
-    public INDArray mulConv(INDArray image){        
-        INDArray input=image.dup();
-        if(input.length()==image_shape[1]*image_shape[2]){
-            input=input.reshape(1,image_shape[1],image_shape[2]);
-        } else{
-            input=input.reshape(image_shape);
-        }
-        INDArray result=Nd4j.zeros(DataType.DOUBLE,numOfFilters,height,width,kernel[0],kernel[1]);
-        for(int filter=0;filter<numOfFilters;filter++){
-            for(int row=0;row<height;row++){
-                for(int col=0;col<width;col++){
-                    int currentFilter=input.shape()[0]==1?0:filter;
-                    result.put(new INDArrayIndex[]{
-                        NDArrayIndex.interval(filter,filter+1),
-                        NDArrayIndex.point(row),
-                        NDArrayIndex.point(col),
-                        NDArrayIndex.all(),NDArrayIndex.all()
-                    },input.get(new INDArrayIndex[]{
-                        NDArrayIndex.interval(currentFilter,currentFilter+1),
-                        //NDArrayIndex.all(),NDArrayIndex.all(),
-                        NDArrayIndex.interval(row,row+kernel[0]),
-                        NDArrayIndex.interval(col,col+kernel[1])
-                    }).mul(getWeights().reshape(numOfFilters,kernel[0],kernel[1])
-                            .get(NDArrayIndex.interval(currentFilter,currentFilter+1),
-                                    NDArrayIndex.all(),NDArrayIndex.all())));
-                }
-            }
-        }
-        return result.sum(3,4);
+    public INDArray mulConv(INDArray image){
+        return parseImageNew(image).mul(getWeights()).sum(3,4);
     }
     
     public INDArray parseImageNew(INDArray image){
