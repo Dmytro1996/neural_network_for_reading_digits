@@ -66,37 +66,43 @@ public class MultiLayerNetwork {
         INDArray[][] nablas=mini_batch.parallelStream().map(mb->backProp(mb[0],mb[1]))
                 .reduce((acc,x)->{
             for(int i=0;i<numOfLayers-1;i++){ 
-                acc[0][i]=acc[0][i].add(x[0][i]);
-                acc[1][i]=acc[1][i].add(x[1][i]);
+                //System.out.println("i:"+i);
+                //System.out.println("acc length:"+acc.length);
+                //System.out.println("acc:"+Arrays.toString(acc));
+                //System.out.println("x:"+Arrays.toString(x));
+                acc[i][0]=acc[i][0].add(x[i][0]);
+                acc[i][1]=acc[i][1].add(x[i][1]);
             }
             return acc;
         }).get(); 
-        for(int i=0;i<numOfLayers-1;i++){
-            nablas[1][i]=nablas[1][i].mul(eta/mini_batch.size());
-            nablas[0][i]=nablas[0][i].mul(eta/mini_batch.size());
+        for(int i=0;i<numOfLayers-2;i++){
+            nablas[i][1]=nablas[i][1].mul(eta/mini_batch.size());
+            nablas[i][0]=nablas[i][0].mul(eta/mini_batch.size());
             ((HiddenLayer)layers.get(i+1)).setWeights(((HiddenLayer)layers.get(i+1))
-                    .getWeights().mul(1d-eta*Math.round(lambda/lenTrainData)).sub(nablas[1][i]));
-            ((HiddenLayer)layers.get(i+1)).setBiases(((HiddenLayer)layers.get(i+1)).getBiases().sub(nablas[0][i]));
+                    .getWeights().mul(1d-eta*Math.round(lambda/lenTrainData)).sub(nablas[i][1]));
+            ((HiddenLayer)layers.get(i+1)).setBiases(((HiddenLayer)layers.get(i+1)).getBiases().sub(nablas[i][0]));
         }
         System.out.print("-");
     }
     
     public INDArray[][] backProp(INDArray x, INDArray y){
-        INDArray[][] result=new INDArray[layers.size()][];
+        INDArray[][] result=new INDArray[layers.size()-1][];
+        //System.out.println("x.length:"+x.length());
         for(Layer layer:layers){
             x=layer.feedforward(x);
         }
-        result[layers.size()-1]=layers.get(layers.size()-1).backProp(y, layers.get(layers.size()-2)
+        result[result.length-1]=layers.get(layers.size()-1).backProp(y, layers.get(layers.size()-2)
                 .getActivations(), null);
-        for(int i=numOfLayers-2;i>0;i--){
-            if(layers.get(i) instanceof ConvLayer && layers.get(i+1) instanceof ConvLayer){
-                result[i]=((ConvLayer)layers.get(i)).backPropConv(((HiddenLayer)layers.get(i+1)).getWeights(),
-                     layers.get(i-1).getActivations(),
+        for(int i=result.length-2;i>=0;i--){
+            if(layers.get(i+1) instanceof ConvLayer && layers.get(i+2) instanceof ConvLayer){
+                result[i]=((ConvLayer)layers.get(i+1)).backPropConv(((HiddenLayer)layers.get(i+2)).getWeights(),
+                     layers.get(i).getActivations(),
                      result[i+1][0]);
             } else{
-                result[i]=layers.get(i).backProp(((HiddenLayer)layers.get(i+1)).getWeights(), layers.get(i-1)
+                result[i]=layers.get(i+1).backProp(((HiddenLayer)layers.get(i+2)).getWeights(), layers.get(i)
                     .getActivations(), result[i+1][0]);
             }
+            //System.out.println("result[i]: "+Arrays.toString(result[i]));
         }
         return result;        
     }
