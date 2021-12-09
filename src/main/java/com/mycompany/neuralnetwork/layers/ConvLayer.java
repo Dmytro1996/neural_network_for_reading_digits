@@ -79,7 +79,7 @@ public class ConvLayer extends HiddenLayer implements IConvLayer {
         INDArray delta=Nd4j.create(deltas,new long[]{width*height},DataType.DOUBLE);*/
         INDArray delta=Nd4j.matmul(nextDelta.reshape(new long[]{numOfFilters,nextDelta.shape()[0]/numOfFilters,1})//test
                 ,nextWeights.reshape(numOfFilters,1,nextWeights.shape()[3]*nextWeights.shape()[4]));        
-        INDArray nabla_w=parseImage(prevActivations,image_shape,kernel,true)//test ok
+        INDArray nabla_w=parseImageNew(prevActivations)//test ok
                 .mul(delta.reshape(numOfFilters, height, width,1,1)).sum(1,2)
                 .reshape(numOfFilters,1,1,kernel[0],kernel[1]);
         return new INDArray[]{delta.reshape(delta.length()), nabla_w};
@@ -87,19 +87,24 @@ public class ConvLayer extends HiddenLayer implements IConvLayer {
     
     public INDArray[] backProp(INDArray nextWeights, INDArray prevActivations, INDArray nextDelta){        
         INDArray delta=nextWeights.transpose().mmul(nextDelta).mul(getNeuron().derivative(getZ()));
-        INDArray nabla_w=delta.reshape(new int[]{(int)delta.shape()[0],1})
-                .mmul(prevActivations.reshape(
-                        new int[]{1,(int)prevActivations.shape()[0]}));
+        INDArray nabla_w=parseImageNew(prevActivations)
+                .mul(delta.reshape(numOfFilters, height, width,1,1)).sum(1,2)
+                .reshape(numOfFilters,1,1,kernel[0],kernel[1]);
         return new INDArray[]{delta, nabla_w};
     }
     
-    public INDArray mulConv(INDArray image){
-        INDArray input=image.dup().reshape(image_shape);
-        INDArray result=Nd4j.zeros(numOfFilters,height,width,kernel[0],kernel[1]);
+    public INDArray mulConv(INDArray image){        
+        INDArray input=image.dup();
+        if(input.length()==image_shape[1]*image_shape[2]){
+            input=input.reshape(1,image_shape[1],image_shape[2]);
+        } else{
+            input=input.reshape(image_shape);
+        }
+        INDArray result=Nd4j.zeros(DataType.DOUBLE,numOfFilters,height,width,kernel[0],kernel[1]);
         for(int filter=0;filter<numOfFilters;filter++){
             for(int row=0;row<height;row++){
                 for(int col=0;col<width;col++){
-                    int currentFilter=image_shape[0]==1?0:filter;
+                    int currentFilter=input.shape()[0]==1?0:filter;
                     result.put(new INDArrayIndex[]{
                         NDArrayIndex.interval(filter,filter+1),
                         NDArrayIndex.point(row),
@@ -119,9 +124,34 @@ public class ConvLayer extends HiddenLayer implements IConvLayer {
         return result.sum(3,4);
     }
     
-    /*public INDArray getDeltas(INDArray nextDelta){
-        
-    }*/
+    public INDArray parseImageNew(INDArray image){
+        INDArray input=image.dup();
+        if(input.length()==image_shape[1]*image_shape[2]){
+            input=input.reshape(1,image_shape[1],image_shape[2]);
+        } else{
+            input=input.reshape(image_shape);
+        }
+        INDArray result=Nd4j.zeros(DataType.DOUBLE,numOfFilters,height,width,kernel[0],kernel[1]);
+        for(int filter=0;filter<numOfFilters;filter++){
+            for(int row=0;row<height;row++){
+                for(int col=0;col<width;col++){
+                    int currentFilter=input.shape()[0]==1?0:filter;
+                    result.put(new INDArrayIndex[]{
+                        NDArrayIndex.interval(filter,filter+1),
+                        NDArrayIndex.point(row),
+                        NDArrayIndex.point(col),
+                        NDArrayIndex.all(),NDArrayIndex.all()
+                    },input.get(new INDArrayIndex[]{
+                        NDArrayIndex.interval(currentFilter,currentFilter+1),
+                        //NDArrayIndex.all(),NDArrayIndex.all(),
+                        NDArrayIndex.interval(row,row+kernel[0]),
+                        NDArrayIndex.interval(col,col+kernel[1])
+                    }));
+                }
+            }
+        }
+        return result;
+    }
     
     public INDArray parseImage(INDArray image,int[] image_shape, int[] kernel, boolean isStrideOne){
         double[] imgArr=image.data().asDouble();
@@ -132,7 +162,7 @@ public class ConvLayer extends HiddenLayer implements IConvLayer {
         int image_width=(int)image_shape[2];
         int numOfFilters=image_shape[0];
         int[] stride=isStrideOne?new int[]{1,1}:kernel;
-        System.out.println("Image length:"+image.length());
+        //System.out.println("Image length:"+image.length());
         for(int filter=0;filter<numOfFilters;filter++){
             for(int row=0;row+kernel_height<=image_height;row+=stride[0]){
                 for(int col=0;col+kernel_width<=image_width;col+=stride[1]){
@@ -149,7 +179,7 @@ public class ConvLayer extends HiddenLayer implements IConvLayer {
                 }
             }
         }
-        System.out.println("result size:"+resultList.size());
+        //System.out.println("result size:"+resultList.size());
         if(!isStrideOne){
             return Nd4j.create((double[])resultList.stream().mapToDouble(d->d.doubleValue()).toArray(),
                 new long[]{numOfFilters,image_height/kernel_height,image_width/kernel_width,kernel_height,kernel_width},DataType.DOUBLE);
