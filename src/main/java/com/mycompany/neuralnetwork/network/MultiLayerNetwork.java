@@ -88,8 +88,9 @@ public class MultiLayerNetwork {
     public INDArray[][] backProp(INDArray x, INDArray y){
         INDArray[][] result=new INDArray[layers.size()-1][];
         //System.out.println("x.length:"+x.length());
+        INDArray activation=x.dup();
         for(Layer layer:layers){
-            x=layer.feedforward(x);
+            activation=layer.feedforward(activation);
         }
         result[result.length-1]=layers.get(layers.size()-1).backProp(y, layers.get(layers.size()-2)
                 .getActivations(), null);
