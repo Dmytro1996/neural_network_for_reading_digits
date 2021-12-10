@@ -45,26 +45,24 @@ public class PoolLayer extends ConvLayer{
             input=input.reshape(getImage_shape());
         }
         INDArray result=Nd4j.zeros(DataType.DOUBLE,getNumOfFilters(),getHeight(),getWidth(),getKernel()[0],getKernel()[1]);
-        for(int filter=0;filter<getNumOfFilters();filter++){
-            for(int row=0;row<getHeight();row++){
-                int inputRow=row*getKernel()[0];
-                for(int col=0;col<getWidth();col++){
-                    int currentFilter=input.shape()[0]==1?0:filter;
-                    int inputCol=col*getKernel()[1];
-                    result.put(new INDArrayIndex[]{
-                        NDArrayIndex.interval(filter,filter+1),
-                        NDArrayIndex.point(row),
-                        NDArrayIndex.point(col),
-                        NDArrayIndex.all(),NDArrayIndex.all()
-                    },input.get(new INDArrayIndex[]{
-                        NDArrayIndex.interval(currentFilter,currentFilter+1),
-                        //NDArrayIndex.all(),NDArrayIndex.all(),
-                        NDArrayIndex.interval(inputRow,inputRow+getKernel()[0]),
-                        NDArrayIndex.interval(inputCol,inputCol+getKernel()[1])
-                    }));
-                }
-            }
-        }
+        INDArray temp=input;
+        IntStream.range(0, getNumOfFilters()).parallel().forEach(filter->
+                IntStream.range(0, getHeight()).parallel().forEach(row->{
+                        int inputRow=row*getKernel()[0];
+                        IntStream.range(0, getWidth()).parallel().forEach(col->{
+                            int currentFilter=temp.shape()[0]==1?0:filter;
+                            int inputCol=col*getKernel()[1];
+                            result.put(new INDArrayIndex[]{
+                                NDArrayIndex.interval(filter,filter+1),
+                                NDArrayIndex.point(row),
+                                NDArrayIndex.point(col),
+                                NDArrayIndex.all(),NDArrayIndex.all()
+                                },temp.get(new INDArrayIndex[]{
+                                NDArrayIndex.interval(currentFilter,currentFilter+1),
+                                NDArrayIndex.interval(inputRow,inputRow+getKernel()[0]),
+                                NDArrayIndex.interval(inputCol,inputCol+getKernel()[1])
+                            }));
+                        });}));
         return result;
     }
     

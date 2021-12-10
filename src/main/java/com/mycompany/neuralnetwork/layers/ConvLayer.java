@@ -92,6 +92,7 @@ public class ConvLayer extends HiddenLayer implements IConvLayer {
     }
     
     public INDArray parseImageNew(INDArray image){
+        long beginPoint=System.currentTimeMillis();
         INDArray input=image.dup();
         if(input.length()==image_shape[1]*image_shape[2]){
             input=input.reshape(1,image_shape[1],image_shape[2]);
@@ -99,24 +100,24 @@ public class ConvLayer extends HiddenLayer implements IConvLayer {
             input=input.reshape(image_shape);
         }
         INDArray result=Nd4j.zeros(DataType.DOUBLE,numOfFilters,height,width,kernel[0],kernel[1]);
-        for(int filter=0;filter<numOfFilters;filter++){
-            for(int row=0;row<height;row++){
-                for(int col=0;col<width;col++){
-                    int currentFilter=input.shape()[0]==1?0:filter;
+        INDArray temp=input;
+        IntStream.range(0, numOfFilters).parallel().forEach(filter->
+                IntStream.range(0, height).parallel().forEach(row->
+                        IntStream.range(0, width).parallel().forEach(col->{
+                            int currentFilter=temp.shape()[0]==1?0:filter;
                     result.put(new INDArrayIndex[]{
                         NDArrayIndex.interval(filter,filter+1),
                         NDArrayIndex.point(row),
                         NDArrayIndex.point(col),
                         NDArrayIndex.all(),NDArrayIndex.all()
-                    },input.get(new INDArrayIndex[]{
+                    },temp.get(new INDArrayIndex[]{
                         NDArrayIndex.interval(currentFilter,currentFilter+1),
                         //NDArrayIndex.all(),NDArrayIndex.all(),
                         NDArrayIndex.interval(row,row+kernel[0]),
                         NDArrayIndex.interval(col,col+kernel[1])
                     }));
-                }
-            }
-        }
+                        })));
+        System.out.println("Parese image: "+(System.currentTimeMillis()-beginPoint));
         return result;
     }
     
