@@ -34,7 +34,9 @@ public class MultiLayerNetwork {
     
     public INDArray feedforward(INDArray activations){
         for(Layer layer:layers){
+            long beginPoint=System.currentTimeMillis();
             activations=layer.feedforward(activations);
+            System.out.println(System.currentTimeMillis()-beginPoint);
         }
         return activations;
     }
