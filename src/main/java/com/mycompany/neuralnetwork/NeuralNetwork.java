@@ -91,9 +91,11 @@ public class NeuralNetwork {
         ConvLayer conv=new ConvLayer(new int[]{1,10,10},2,new int[]{5,5},new SigmoidNeuron());
         PoolLayer poolLayer=new PoolLayer(new int[]{1,10,10},2,new int[]{5,5},new SigmoidNeuron());
         conv.setWeights(pseudo_weights);
+        System.out.println("Matrix100 flattened"+Nd4j.toFlattened('f', matrix100.reshape(10,10)));
         //System.out.println("matrix100*pseudo_weights:"+matrix100.mul(pseudo_weights));
         System.out.println("Matrix100 parsed:\n"+conv.parseImage(matrix100,new int[]{1,10,10},new int[]{5,5},true));
-        System.out.println("Matrix100 parsed pool:\n"+poolLayer.parseImageNew(matrix100));
+        System.out.println("Matrix100 parsed new conv mul:\n"+conv.parseImageNew(matrix100).mul(pseudo_weights));
+        System.out.println("Matrix100 parsed pool:\n"+poolLayer.parseImageNew(matrix100).mul(pseudo_weights));
         System.out.println("Matrix100 mulConv:\n"+conv.mulConv(matrix100));
         System.out.println("Deltas positions:\n"+Arrays.stream(conv.getDeltasPositions(new int[]{3,3},true))
                 .map(arr->Arrays.toString(arr)).collect(Collectors.joining(",")));
@@ -117,6 +119,10 @@ public class NeuralNetwork {
         INDArray delta=Nd4j.matmul(matrix10.reshape(new long[]{1,matrix10.shape()[0]/1,1})//test
                 ,pool.reshape(1,1,pool.shape()[1]*pool.shape()[0]));
         System.out.println("Deltas:"+delta.reshape(10,2,2));
+        INDArray temp=matrix100;
+        temp.muli(2);
+        System.out.println("Matrix100: "+matrix100);
+        System.out.println("temp: "+temp);
         //Nd4j.matmul(twos, threes);
         //System.out.println(conv.parseImage(matrix100,new int[]{5,5},new int[]{10,10},true).sum(2,3));
         //Network net=new Network(new int[]{784,30,10});
@@ -192,8 +198,8 @@ public class NeuralNetwork {
         //net.SGD(training_data_nd4j, 10, 10, 0.5d, 5d, false, false, false, test_data_nd4j);
         //new Adagrad().optimize(net, training_data_nd4j, 10, 10, 0.00005d, 5d, false, false, false, test_data_nd4j);
         //new RMSprop().optimize(net, training_data_nd4j.subList(0, 1000), 10, 10, 0.001d, 0.9d, false, false, false, test_data_nd4j.subList(0, 1000));
-        System.out.println(training_data_nd4j.get(0)[0]);
-        net.SGD(training_data_nd4j.subList(0, 100), 10, 10, 0.5d, 5d, test_data_nd4j.subList(0, 100));
+        //net.SGD(training_data_nd4j.subList(0, 100), 10, 10, 0.1d, 100d, test_data_nd4j.subList(0, 100));
+        net.feedforward(training_data_nd4j.get(0)[0]);
         //System.out.println(training_data_nd4j.get(0)[0]);
         //System.out.println(Arrays.toString(Nd4j.create(new double[]{0.76498521,0.28495175,2.25854695},
         //        new long[]{3L},DataType.DOUBLE).mul(2.24175968).data().asDouble()));
