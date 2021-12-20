@@ -10,8 +10,11 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Random;
+import java.util.function.Function;
+import java.util.stream.Collectors;
 import java.util.stream.DoubleStream;
 import java.util.stream.IntStream;
+import java.util.stream.Stream;
 import org.nd4j.linalg.api.buffer.DataType;
 import org.nd4j.linalg.api.ndarray.INDArray;
 import org.nd4j.linalg.factory.Nd4j;
@@ -30,6 +33,8 @@ public class ConvLayer extends HiddenLayer implements IConvLayer {
     private int width;
     private int height;
     private int[][] deltasPositions;
+    private INDArray input;
+    private INDArray[] parsedImage;
     
     public ConvLayer(Neuron neuron){
         super(neuron);
@@ -47,10 +52,27 @@ public class ConvLayer extends HiddenLayer implements IConvLayer {
                 new long[]{numOfFilters,1,1,kernel[0],kernel[1]}, DataType.DOUBLE));
         setBiases(Nd4j.create(DoubleStream.generate(()->rand.nextGaussian()).limit(numOfFilters*width*height).toArray(),
                 new long[]{numOfFilters*width*height}, DataType.DOUBLE));
+        input=Nd4j.ones(image_shape).castTo(DataType.DOUBLE);
+        setParsedImage();
     }
     
     public INDArray feedforward(INDArray activations){
         setZ(Nd4j.toFlattened(mulConv(activations)).add(getBiases()));
+        return getActivations();
+    }
+    
+    public INDArray feedforwardNew(INDArray activations){
+        long beginPoint=System.currentTimeMillis();
+        input.muli(0).addi(activations.reshape(image_shape));
+        System.out.println(System.currentTimeMillis()-beginPoint);
+        /*setZ(Nd4j.toFlattened(Nd4j.create(
+                parsedImage.parallelStream().map(
+                        p->p.dup().data().asDouble()).flatMapToDouble(Arrays::stream).toArray(),
+                new long[]{numOfFilters,height,width,kernel[0],kernel[1]},
+                DataType.DOUBLE).mul(getWeights()).sum(3,4)).add(getBiases()));*/
+        setZ(Nd4j.toFlattened(Nd4j.vstack(parsedImage)
+                .reshape(numOfFilters,height,width,kernel[0],kernel[1]).mul(getWeights()).sum(3,4)).add(getBiases()));
+        System.out.println(System.currentTimeMillis()-beginPoint);
         return getActivations();
     }
     
@@ -119,6 +141,21 @@ public class ConvLayer extends HiddenLayer implements IConvLayer {
                         })));
         System.out.println("Parese image: "+(System.currentTimeMillis()-beginPoint));
         return result;
+    }
+    
+    public void setParsedImage(){
+        parsedImage=new INDArray[numOfFilters*height*width];
+        INDArray temp=input;
+        IntStream.range(0, numOfFilters).forEach(filter->
+                IntStream.range(0, height).forEach(row->
+                        IntStream.range(0, width).forEach(col->{
+                            int currentFilter=temp.shape()[0]==1?0:filter;
+                    parsedImage[filter*height*width+row*height+col]=temp.get(new INDArrayIndex[]{
+                        NDArrayIndex.interval(currentFilter,currentFilter+1),
+                        NDArrayIndex.interval(row,row+kernel[0]),
+                        NDArrayIndex.interval(col,col+kernel[1])
+                    });
+        })));
     }
     
     public INDArray parseImage(INDArray image,int[] image_shape, int[] kernel, boolean isStrideOne){
