@@ -45,6 +45,7 @@ import org.deeplearning4j.nn.conf.layers.DenseLayer;
 //import org.deeplearning4j.nn.multilayer.MultiLayerNetwork;
 import org.deeplearning4j.nn.weights.WeightInit;
 import org.nd4j.linalg.activations.Activation;
+import org.nd4j.linalg.api.buffer.DataBuffer;
 import org.nd4j.linalg.api.buffer.DataType;
 import org.nd4j.linalg.api.ndarray.INDArray;
 import org.nd4j.linalg.dataset.api.iterator.DataSetIterator;
@@ -123,6 +124,49 @@ public class NeuralNetwork {
         temp.muli(2);
         System.out.println("Matrix100: "+matrix100);
         System.out.println("temp: "+temp);
+        INDArray arrToParse=Nd4j.create(IntStream.generate(()->1).limit(100).toArray(),new long[]{10,10},DataType.INT32);
+        INDArray subArr=Nd4j.zeros(2,5,5);//arrToParse.get(NDArrayIndex.interval(0, 5),NDArrayIndex.interval(0, 5));
+        //subArr=Nd4j.hstack(subArr,arrToParse.get(NDArrayIndex.interval(5, 10),NDArrayIndex.interval(5, 10)));
+        //INDArray subArrC=arrToParse.get(NDArrayIndex.interval(0, 5),NDArrayIndex.interval(0, 5));
+        //subArr.put(new INDArrayIndex[]{NDArrayIndex.all(),NDArrayIndex.all()},subArrC);
+        List<INDArray> subArrs=new ArrayList<>();
+        subArr.get(NDArrayIndex.point(0)).assign(arrToParse.get(NDArrayIndex.interval(0, 5),NDArrayIndex.interval(0, 5)));
+        int[][] arr= new int[2][];
+        arr[0]=arrToParse.get(NDArrayIndex.interval(0, 5),NDArrayIndex.interval(0, 5)).data().asInt();
+        arr[1]=arrToParse.get(NDArrayIndex.interval(5, 10),NDArrayIndex.interval(5, 10)).data().asInt();
+        for(int row=0;row<arrToParse.shape()[0]-4;row++){
+            for(int col=0;col<arrToParse.shape()[1]-4;col++){
+                subArrs.add(arrToParse.get(NDArrayIndex.interval(row,row+5),NDArrayIndex.interval(col,col+5)));
+            }
+        }
+        System.out.println("arrToParse: "+arrToParse);
+        System.out.println("subArr: "+subArr.stride());
+        System.out.println("data: "+Arrays.stream(arr).map(a->Arrays.toString(a)).collect(Collectors.joining(",")));
+        System.out.println("subArrs[0]: "+subArrs.get(0));
+        System.out.println("subArrs[5]: "+subArrs.get(5));
+        arrToParse.muli(matrix100.reshape(10,10));
+        System.out.println("arrToParse: "+arrToParse);
+        System.out.println("subArr: "+subArr);
+        System.out.println("data: "+Arrays.stream(arr).map(a->Arrays.toString(a)).collect(Collectors.joining(",")));
+        System.out.println("subArrs[0]: "+Arrays.toString(subArrs.get(0).dup().data().asDouble()));
+        System.out.println("subArrs[5]: "+subArrs.get(5));
+        //System.out.println("Stacked array: "+Nd4j.vstack(subArrs.toArray(new INDArray[subArrs.size()])).reshape(1,6,6,5,5));
+        long beginPoint=System.currentTimeMillis();
+        conv.feedforward(matrix100.reshape(100));
+        System.out.println("feedforward: "+(System.currentTimeMillis()-beginPoint));
+        beginPoint=System.currentTimeMillis();
+        conv.feedforwardNew(matrix100.reshape(100));
+        System.out.println("feedforwardNew: "+(System.currentTimeMillis()-beginPoint));
+        int[][] originalArr=new int[3][3];
+        int[][] copyArr=new int[3][3];
+        for(int i=0;i<copyArr.length;i++){
+            copyArr[i]=originalArr[i];
+        }
+        System.out.println("originalArr: "+Arrays.toString(originalArr));
+        System.out.println("copyArr: "+Arrays.stream(copyArr).map(a->Arrays.toString(a)).collect(Collectors.joining(",")));
+        originalArr=new int[][]{new int[]{1,2,3},new int[]{1,2,3},new int[]{1,2,3}};
+        System.out.println("originalArr: "+Arrays.toString(originalArr));
+        System.out.println("copyArr: "+Arrays.stream(copyArr).map(a->Arrays.toString(a)).collect(Collectors.joining(",")));
         //Nd4j.matmul(twos, threes);
         //System.out.println(conv.parseImage(matrix100,new int[]{5,5},new int[]{10,10},true).sum(2,3));
         //Network net=new Network(new int[]{784,30,10});
