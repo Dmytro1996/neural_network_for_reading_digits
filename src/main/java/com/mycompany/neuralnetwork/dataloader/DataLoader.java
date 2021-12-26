@@ -26,7 +26,7 @@ import org.nd4j.linalg.factory.Nd4j;
 public class DataLoader {
     
     public static List<INDArray[]> loadTrainingDataAsINDArrays(int packages) throws IOException{
-        String fileName="src\\main\\resources\\data\\mnist_training_data_";
+        String fileName="src\\main\\resources\\data\\mnist_training_data_as_arr_";
         List<INDArray[]> result=loadDataAsINDArrays(fileName+"1.json");
         for(int i=1;i<packages;i++){
             try{
@@ -40,11 +40,11 @@ public class DataLoader {
     }
     
     public static List<INDArray[]> loadTestDataAsINDArrays() throws IOException{
-        return loadDataAsINDArrays("src\\main\\resources\\data\\mnist_test_data.json");
+        return loadDataAsINDArrays("src\\main\\resources\\data\\mnist_test_data_as_arr.json");
     }
     
     public static List<INDArray[]> loadValidationDataAsINDArrays() throws IOException{
-        return loadDataAsINDArrays("src\\main\\resources\\data\\mnist_validation_data.json");
+        return loadDataAsINDArrays("src\\main\\resources\\data\\mnist_validation_data_as_arr.json");
     }
     
     public static List<Matrix[]> loadTrainingDataAsMatrices(int packages) throws IOException{
@@ -99,12 +99,32 @@ public class DataLoader {
         return result;
     }
     
+    public static List<double[][]> loadDataAsArrays(String fileName) throws IOException{
+        File file=new File(fileName);
+        FileReader fr=new FileReader(fileName);
+        BufferedReader br=new BufferedReader(fr);
+        String s=null;
+        StringBuilder text=new StringBuilder();
+        long beginPoint=System.currentTimeMillis();
+        while((s=br.readLine())!=null){
+            text.append(s);
+        }
+        br.close();
+        fr.close();
+        String[] matrixArr=text.substring(1, text.length()-3).toString().split("\\]\\],");
+        long readingEnded=System.currentTimeMillis()-beginPoint;
+        System.out.println("Reading ended:"+readingEnded);        
+        Gson gson=new Gson();
+        List<double[][]> result=(List<double[][]>)Arrays.stream(matrixArr).map(str->
+                gson.fromJson(new StringBuilder(str).append("]]").toString(),
+                        double[][].class)).collect(Collectors.toList());
+        System.out.println("Transforming to list ended: "+((System.currentTimeMillis()-readingEnded)/1000));
+        return result;
+    }
+    
     public static List<INDArray[]> loadDataAsINDArrays(String fileName) throws IOException{        
-        return loadDataAsMatrices(fileName).stream().map(m->
-                new INDArray[]{Nd4j.create(m[0].getElements().stream().mapToDouble(e->e.doubleValue()).toArray(),
-                        Arrays.stream(m[0].getShape()).mapToLong(i->(long)i).toArray(),DataType.DOUBLE),
-                    Nd4j.create(m[1].getElements().stream().mapToDouble(e->e.doubleValue()).toArray(),
-                        Arrays.stream(m[1].getShape()).mapToLong(i->(long)i).toArray(),DataType.DOUBLE)})
+        return loadDataAsArrays(fileName).stream().map(m->
+                new INDArray[]{Nd4j.create(m[0]),Nd4j.create(m[1])})
                 .collect(Collectors.toList());
     }
 }
