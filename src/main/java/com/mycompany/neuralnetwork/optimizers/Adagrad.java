@@ -61,19 +61,6 @@ public class Adagrad implements Optimizer {
     }
 
     public void update_mini_batch(NetworkEnhanced net, List<INDArray[]> mini_batch, double eta, double lambda, int lenTrainData){
-        /*INDArray[][] grads_squared=new INDArray[2][net.getNum_layers()-1];
-        grads_squared[1]=net.getWeights().stream().map(w->Nd4j.zeros(w.shape())).toArray(INDArray[]::new);
-        grads_squared[0]=net.getBiases().stream().map(b->Nd4j.zeros(b.shape())).toArray(INDArray[]::new);*/
-        /*mini_batch.parallelStream().map(data->backprop(net,data[0],data[1])).forEach((arr)->{
-                for(int j=0;j<net.getNum_layers()-1;j++){                
-                    grads_squared[0][j].add(arr[0][j].mul(arr[0][j]));
-                    grads_squared[1][j].add(arr[1][j].mul(arr[1][j]));
-                    net.getWeights().set(j, net.getWeights().get(j).sub(new NDMath()
-                            .pow(grads_squared[1][j].add(0.0000001), -0.5).mul(eta).mul(arr[1][j])));
-                    net.getBiases().set(j, net.getBiases().get(j).sub(new NDMath()
-                            .pow(grads_squared[0][j].add(0.0000001), -0.5).mul(eta).mul(arr[0][j])));
-                }
-            });*/
         INDArray[][] nablas=mini_batch.parallelStream().map(mb->backprop(net, mb[0],mb[1]))
                 .reduce((acc,x)->{
             for(int i=0;i<net.getNum_layers()-1;i++){                
