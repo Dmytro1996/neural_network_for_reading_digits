@@ -26,6 +26,7 @@ import java.io.BufferedWriter;
 import java.io.FileReader;
 import java.io.FileWriter;
 import java.io.IOException;
+import java.util.ArrayList;
 import java.util.Arrays;
 
 /**
@@ -176,12 +177,12 @@ public class NetworkEnhanced {
     }
     
     public double countTotalCost(List<INDArray[]> data, double lambda){
-        double weightsSquare=weights.parallelStream().map(w->new NDMath().square(w).sum().data().asDouble()[0])
+        double weightsSquare=weights.parallelStream().map(w->new NDMath().square(w.dup()).sum().data().asDouble()[0])
                 .reduce((acc,x)->acc+x).orElse(0d);
-        return data.parallelStream().peek((arr)->{
-            if(arr[1].data().length()==1)arr[1]=vectorized_result(arr[1]);
-                }).map(arr->cost.fun(feedforward(arr[0]), arr[1])).reduce((acc,x)->acc+x).orElse(0d)+
-                0.5*(lambda/data.size())*weightsSquare;
+        return data.parallelStream().map(arr->{
+            if(arr[1].data().length()==1) return cost.fun(feedforward(arr[0]), vectorized_result(arr[1]));
+            return cost.fun(feedforward(arr[0]), arr[1]);
+                }).reduce((acc,x)->acc+x).orElse(0d)+0.5*(lambda/data.size())*weightsSquare;
     }
     
     public INDArray vectorized_result(INDArray expected_output){
