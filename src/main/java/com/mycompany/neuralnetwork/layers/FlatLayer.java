@@ -26,7 +26,7 @@ public class FlatLayer extends HiddenLayer {
         this.nIn = nIn;
         this.nOut = nOut;
         Random rand=new Random();        
-        setWeights(Nd4j.create(DoubleStream.generate(()->rand.nextGaussian()/Math.sqrt(nOut))
+        setWeights(Nd4j.create(DoubleStream.generate(()->rand.nextGaussian()/Math.sqrt(nIn))
                 .limit(nIn*nOut).toArray(),
                     new long[]{nOut,nIn},DataType.DOUBLE));
         setBiases(Nd4j.create(DoubleStream.generate(()->rand.nextGaussian())
