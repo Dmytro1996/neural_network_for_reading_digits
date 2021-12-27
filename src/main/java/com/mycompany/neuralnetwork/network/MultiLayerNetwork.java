@@ -34,9 +34,9 @@ public class MultiLayerNetwork {
     
     public INDArray feedforward(INDArray activations){
         for(Layer layer:layers){
-            long beginPoint=System.currentTimeMillis();
+            //long beginPoint=System.currentTimeMillis();
             activations=layer.feedforward(activations);
-            System.out.println(System.currentTimeMillis()-beginPoint);
+            //System.out.println(System.currentTimeMillis()-beginPoint);
         }
         return activations;
     }
@@ -77,7 +77,7 @@ public class MultiLayerNetwork {
             }
             return acc;
         }).get(); 
-        for(int i=0;i<numOfLayers-2;i++){
+        for(int i=0;i<numOfLayers-1;i++){
             nablas[i][1]=nablas[i][1].mul(eta/mini_batch.size());
             nablas[i][0]=nablas[i][0].mul(eta/mini_batch.size());
             ((HiddenLayer)layers.get(i+1)).setWeights(((HiddenLayer)layers.get(i+1))
