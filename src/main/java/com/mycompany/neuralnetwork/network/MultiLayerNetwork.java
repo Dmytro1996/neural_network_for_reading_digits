@@ -81,7 +81,9 @@ public class MultiLayerNetwork {
             nablas[i][1]=nablas[i][1].mul(eta/mini_batch.size());
             nablas[i][0]=nablas[i][0].mul(eta/mini_batch.size());
             ((HiddenLayer)layers.get(i+1)).setWeights(((HiddenLayer)layers.get(i+1))
-                    .getWeights().mul(1d-eta*Math.round(lambda/lenTrainData)).sub(nablas[i][1]));
+                    .getWeights().sub(nablas[i][1]));
+            /*((HiddenLayer)layers.get(i+1)).setWeights(((HiddenLayer)layers.get(i+1))
+                    .getWeights().mul(1d-eta*Math.round(lambda/lenTrainData)).sub(nablas[i][1]));*/
             ((HiddenLayer)layers.get(i+1)).setBiases(((HiddenLayer)layers.get(i+1)).getBiases().sub(nablas[i][0]));
         }
         System.out.print("-");
@@ -114,18 +116,5 @@ public class MultiLayerNetwork {
         return test_data.parallelStream().filter(c->
                 feedforward(c[0]).argMax(0).data().asInt()[0]==c[1].data().asInt()[0])
                 .count();
-    }
-    
-    public void setDeltasPositions(){
-        for(int i=1;i<layers.size()-1;i++){
-            System.out.println("setDeltasPositions iteration:"+i);
-            if(layers.get(i) instanceof ConvLayer && layers.get(i+1) instanceof ConvLayer){
-                ((ConvLayer)layers.get(i)).setDeltasPositions(
-                        ((ConvLayer)layers.get(i)).getDeltasPositions(((ConvLayer)layers.get(i+1)).getKernel(),
-                                !(layers.get(i+1) instanceof PoolLayer)));
-            }
-        }
-        System.out.println("setDeltasPositions ended");
-    }
-    
+    }    
 }
