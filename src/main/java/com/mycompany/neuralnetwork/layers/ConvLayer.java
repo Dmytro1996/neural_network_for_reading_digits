@@ -15,6 +15,7 @@ import java.util.stream.Collectors;
 import java.util.stream.DoubleStream;
 import java.util.stream.IntStream;
 import java.util.stream.Stream;
+import org.nd4j.linalg.api.buffer.DataBuffer;
 import org.nd4j.linalg.api.buffer.DataType;
 import org.nd4j.linalg.api.ndarray.INDArray;
 import org.nd4j.linalg.factory.Nd4j;
@@ -56,23 +57,26 @@ public class ConvLayer extends HiddenLayer implements IConvLayer {
         setParsedImage();
     }
     
-    public INDArray feedforward(INDArray activations){
+    public INDArray feedforwardNew(INDArray activations){
         setZ(Nd4j.toFlattened(mulConv(activations)).add(getBiases()));
         return getActivations();
     }
     
-    public INDArray feedforwardNew(INDArray activations){
+    public INDArray feedforward(INDArray activations){
         long beginPoint=System.currentTimeMillis();
         input.muli(0).addi(activations.reshape(image_shape));
-        System.out.println(System.currentTimeMillis()-beginPoint);
+        //System.out.println(System.currentTimeMillis()-beginPoint);
         /*setZ(Nd4j.toFlattened(Nd4j.create(
-                parsedImage.parallelStream().map(
+                Arrays.asList(parsedImage).parallelStream().map(
                         p->p.dup().data().asDouble()).flatMapToDouble(Arrays::stream).toArray(),
                 new long[]{numOfFilters,height,width,kernel[0],kernel[1]},
                 DataType.DOUBLE).mul(getWeights()).sum(3,4)).add(getBiases()));*/
-        setZ(Nd4j.toFlattened(Nd4j.vstack(parsedImage)
-                .reshape(numOfFilters,height,width,kernel[0],kernel[1]).mul(getWeights()).sum(3,4)).add(getBiases()));
-        System.out.println(System.currentTimeMillis()-beginPoint);
+        /*setZ(Nd4j.toFlattened(Nd4j.vstack(parsedImage)
+                .reshape(numOfFilters,height,width,kernel[0],kernel[1]).mul(getWeights()).sum(3,4)).add(getBiases()));*/
+        INDArray mediator=Nd4j.zeros(numOfFilters, height, width,kernel[0],kernel[1]).castTo(DataType.DOUBLE);
+        mediator.data().assign((DataBuffer[])Arrays.asList(parsedImage).parallelStream().map(p->p.dup().data()).toArray(size->new DataBuffer[size]));
+        setZ(Nd4j.toFlattened(mediator.mul(getWeights()).sum(3,4)).add(getBiases()));
+        //System.out.println(System.currentTimeMillis()-beginPoint);
         return getActivations();
     }
     
@@ -139,7 +143,7 @@ public class ConvLayer extends HiddenLayer implements IConvLayer {
                         NDArrayIndex.interval(col,col+kernel[1])
                     }));
                         })));
-        System.out.println("Parese image: "+(System.currentTimeMillis()-beginPoint));
+        //System.out.println("Parese image: "+(System.currentTimeMillis()-beginPoint));
         return result;
     }
     
@@ -238,6 +242,14 @@ public class ConvLayer extends HiddenLayer implements IConvLayer {
         return height;
     }
 
+    public INDArray getInput() {
+        return input;
+    }
+
+    public INDArray[] getParsedImage() {
+        return parsedImage;
+    }
+
     public int[][] getDeltasPositions() {
         return deltasPositions;
     }
@@ -265,5 +277,15 @@ public class ConvLayer extends HiddenLayer implements IConvLayer {
     public void setDeltasPositions(int[][] deltasPositions) {
         this.deltasPositions = deltasPositions;
     }
+
+    public void setInput(INDArray input) {
+        this.input = input;
+    }
+
+    public void setParsedImage(INDArray[] parsedImage) {
+        this.parsedImage = parsedImage;
+    }
+    
+    
     
 }
