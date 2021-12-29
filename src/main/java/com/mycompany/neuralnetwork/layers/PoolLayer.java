@@ -35,8 +35,6 @@ public class PoolLayer extends ConvLayer{
                 new long[]{numOfFilters,1,1,kernel[0],kernel[1]}, DataType.DOUBLE));
         setBiases(Nd4j.create(DoubleStream.generate(()->rand.nextGaussian()).limit(getNumOfFilters()*getWidth()*getHeight()).toArray(),
                 new long[]{numOfFilters*getWidth()*getHeight()}, DataType.DOUBLE));
-        setInput(Nd4j.ones(image_shape).castTo(DataType.DOUBLE));
-        setParsedImage();
     }
     
     public INDArray parseImageNew(INDArray image){
@@ -67,32 +65,4 @@ public class PoolLayer extends ConvLayer{
                         });}));
         return result;
     }
-    
-    public void setParsedImage(){
-        INDArray[] parsedImage=new INDArray[getNumOfFilters()*getHeight()*getWidth()];
-        INDArray temp=getInput();
-        IntStream.range(0, getNumOfFilters()).forEach(filter->
-                IntStream.range(0, getHeight()).forEach(row->{
-                        int inputRow=row*getKernel()[0];
-                        IntStream.range(0, getWidth()).forEach(col->{
-                            int inputCol=col*getKernel()[1];
-                            int currentFilter=temp.shape()[0]==1?0:filter;
-                        parsedImage[filter*getHeight()*getWidth()+row*getHeight()+col]=temp.get(new INDArrayIndex[]{
-                            NDArrayIndex.interval(currentFilter,currentFilter+1),
-                            NDArrayIndex.interval(inputRow,inputRow+getKernel()[0]),
-                            NDArrayIndex.interval(inputCol,inputCol+getKernel()[1])
-                        });
-        });}));
-        setParsedImage(parsedImage);
-    }
-    
-   //public INDArray feedforward(INDArray activations){
-        /*if(activations.shape().length>3){
-            activations.reshape(getNumOfFilters(),activations.shape()[0],activations.shape()[1]);
-        }*/
-     /*    setZ(parseImage(activations,getImage_shape(),getKernel(),false)
-                .mul(getWeights()).sum(3,4));//test ok
-        setZ(getZ().add(getBiases()));
-        return getActivations();
-    }*/
 }
