@@ -58,15 +58,14 @@ public class ConvLayer extends HiddenLayer implements IConvLayer {
     }   
         
     public INDArray[] backPropConv(INDArray nextWeights, INDArray prevActivations, INDArray nextDelta){
-        INDArray delta=Nd4j.matmul(nextDelta.reshape(new long[]{numOfFilters,nextDelta.shape()[0]/numOfFilters,1})
-                ,nextWeights.reshape(numOfFilters,1,nextWeights.shape()[3]*nextWeights.shape()[4]));        
+        INDArray delta=calculateDeltas(nextDelta, nextWeights).mul(getNeuron().derivative(getZ()));
         INDArray nabla_w=parseImage(prevActivations)//test ok
                 .mul(delta.reshape(numOfFilters, height, width,1,1)).sum(1,2)
                 .reshape(numOfFilters,1,1,kernel[0],kernel[1]);
         return new INDArray[]{delta.reshape(delta.length()), nabla_w};
     }
     
-    public INDArray[] backProp(INDArray nextWeights, INDArray prevActivations, INDArray nextDelta){        
+    public INDArray[] backProp(INDArray nextWeights, INDArray prevActivations, INDArray nextDelta){
         INDArray delta=nextWeights.transpose().mmul(nextDelta).mul(getNeuron().derivative(getZ()));
         INDArray nabla_w=parseImage(prevActivations)
                 .mul(delta.reshape(numOfFilters, height, width,1,1)).sum(1,2)
@@ -82,28 +81,77 @@ public class ConvLayer extends HiddenLayer implements IConvLayer {
         long beginPoint=System.currentTimeMillis();
         INDArray input=image.dup();
         if(input.length()==image_shape[1]*image_shape[2]){
-            input=input.reshape(1,image_shape[1],image_shape[2]);
+            input=multiplyByFilters(input).reshape(numOfFilters,image_shape[1],image_shape[2]);
         } else{
             input=input.reshape(image_shape);
         }
+        input=multiplyByRows(input);
         INDArray result=Nd4j.zeros(DataType.DOUBLE,numOfFilters,height,width,kernel[0],kernel[1]);
         INDArray temp=input;
-        IntStream.range(0, numOfFilters).parallel().forEach(filter->
-                IntStream.range(0, height).parallel().forEach(row->
-                        IntStream.range(0, width).parallel().forEach(col->{
-                            int currentFilter=temp.shape()[0]==1?0:filter;
+        IntStream.range(0, width).parallel().forEach(col->{
                     result.put(new INDArrayIndex[]{
-                        NDArrayIndex.interval(filter,filter+1),
-                        NDArrayIndex.point(row),
+                        NDArrayIndex.all(),
+                        NDArrayIndex.all(),
                         NDArrayIndex.point(col),
                         NDArrayIndex.all(),NDArrayIndex.all()
                     },temp.get(new INDArrayIndex[]{
-                        NDArrayIndex.interval(currentFilter,currentFilter+1),
-                        NDArrayIndex.interval(row,row+kernel[0]),
+                        NDArrayIndex.all(),
+                        NDArrayIndex.all(),
+                        NDArrayIndex.all(),
                         NDArrayIndex.interval(col,col+kernel[1])
                     }));
-                        })));
+        });
         return result;
+    }
+    
+    public INDArray multiplyByFilters(INDArray image){
+        INDArray result=Nd4j.zeros(numOfFilters,image.length());
+        IntStream.range(0,numOfFilters).forEach(filter->{
+            result.put(new INDArrayIndex[]{NDArrayIndex.point(filter),NDArrayIndex.all()},image);
+        });
+        return result;
+    }
+    
+    public INDArray multiplyByRows(INDArray image){
+        INDArray result=Nd4j.zeros(numOfFilters, height, kernel[0], image_shape[2]);
+        IntStream.range(0,height).forEach(row->{
+            result.put(new INDArrayIndex[]{NDArrayIndex.all(),NDArrayIndex.point(row)},
+                    image.get(NDArrayIndex.all(),NDArrayIndex.interval(row,row+kernel[0])));
+        });
+        return result;
+    }
+    
+    public INDArray calculateDeltas(INDArray nextDelta, INDArray nextWeights){
+        INDArray delta=Nd4j.zeros(numOfFilters,height,width);
+        int horStride=1;
+        int vertStride=1;
+        int nextLayerHeight=0;
+        int nextLayerWidth=0;
+        int[] nextKernel=new int[]{(int)nextWeights.shape()[3],(int)nextWeights.shape()[4]};
+        if(nextDelta.length()*nextWeights.shape()[3]*nextWeights.shape()[4]==numOfFilters*height*width){
+            vertStride=(int)nextWeights.shape()[3];
+            horStride=(int)nextWeights.shape()[4];
+            nextLayerHeight=height/vertStride;
+            nextLayerWidth=width/horStride;
+        } else{
+            nextLayerHeight=height-((int)nextWeights.shape()[3]-1);
+            nextLayerWidth=width-((int)nextWeights.shape()[4]-1);            
+        }
+        int nextLayerFilters=(int)nextDelta.length()/(nextLayerHeight*nextLayerWidth);
+        INDArray nextDeltaReshaped=nextDelta.reshape(nextLayerFilters, 1, nextLayerHeight*nextLayerWidth);
+        INDArray nextWeightsReshaped=nextWeights.reshape(nextLayerFilters,nextWeights.shape()[3],nextWeights.shape()[4]);
+        int[] strides=new int[]{vertStride,horStride};
+        INDArray temp=delta;
+        int[] sizes=new int[]{nextLayerHeight,nextLayerWidth};
+        IntStream.range(0, nextLayerHeight*nextLayerWidth).parallel().forEach(i->{
+            int row=i/sizes[0];
+            int col=i-row*sizes[0];
+            temp.get(NDArrayIndex.all(),NDArrayIndex.interval(row*strides[0], row*strides[0]+nextKernel[0]),
+                    NDArrayIndex.interval(col*strides[1], col*strides[1]+nextKernel[1]))
+                    .addi(nextDeltaReshaped.get(NDArrayIndex.all(),NDArrayIndex.all(),NDArrayIndex.interval(i,i+1))
+                            .mul(nextWeightsReshaped));
+        });
+        return Nd4j.toFlattened(delta);
     }
     
     public int[] getImage_shape() {
