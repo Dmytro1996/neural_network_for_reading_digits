@@ -37,32 +37,44 @@ public class PoolLayer extends ConvLayer{
                 new long[]{numOfFilters*getWidth()*getHeight()}, DataType.DOUBLE));
     }
     
-    public INDArray parseImageNew(INDArray image){
+    public INDArray mulConv(INDArray image){
+        return parseImage(image).mul(getWeights()).max(3,4);
+    }
+    
+    public INDArray parseImage(INDArray image){
         INDArray input=image.dup();
         if(input.length()==getImage_shape()[1]*getImage_shape()[2]){
-            input=input.reshape(1,getImage_shape()[1],getImage_shape()[2]);
+            input=multiplyByFilters(input).reshape(getNumOfFilters(),getImage_shape()[1],getImage_shape()[2]);
         } else{
             input=input.reshape(getImage_shape());
         }
+        input=multiplyByRows(input);
         INDArray result=Nd4j.zeros(DataType.DOUBLE,getNumOfFilters(),getHeight(),getWidth(),getKernel()[0],getKernel()[1]);
         INDArray temp=input;
-        IntStream.range(0, getNumOfFilters()).parallel().forEach(filter->
-                IntStream.range(0, getHeight()).parallel().forEach(row->{
-                        int inputRow=row*getKernel()[0];
-                        IntStream.range(0, getWidth()).parallel().forEach(col->{
-                            int currentFilter=temp.shape()[0]==1?0:filter;
-                            int inputCol=col*getKernel()[1];
-                            result.put(new INDArrayIndex[]{
-                                NDArrayIndex.interval(filter,filter+1),
-                                NDArrayIndex.point(row),
-                                NDArrayIndex.point(col),
-                                NDArrayIndex.all(),NDArrayIndex.all()
-                                },temp.get(new INDArrayIndex[]{
-                                NDArrayIndex.interval(currentFilter,currentFilter+1),
-                                NDArrayIndex.interval(inputRow,inputRow+getKernel()[0]),
-                                NDArrayIndex.interval(inputCol,inputCol+getKernel()[1])
-                            }));
-                        });}));
+        IntStream.range(0, getWidth()).parallel().forEach(col->{
+                int inputCol=col*getKernel()[1];
+                result.put(new INDArrayIndex[]{
+                    NDArrayIndex.all(),
+                    NDArrayIndex.all(),
+                    NDArrayIndex.point(col),
+                    NDArrayIndex.all(),NDArrayIndex.all()
+                    },temp.get(new INDArrayIndex[]{
+                    NDArrayIndex.all(),
+                    NDArrayIndex.all(),
+                    NDArrayIndex.all(),
+                    NDArrayIndex.interval(inputCol,inputCol+getKernel()[1])
+                    }));
+            });
+        return result;
+    }
+    
+    public INDArray multiplyByRows(INDArray image){
+        INDArray result=Nd4j.zeros(getNumOfFilters(), getHeight(), getKernel()[0], getImage_shape()[2]);
+        IntStream.range(0,getHeight()).forEach(row->{
+            int imageRow=row*getKernel()[0];
+            result.put(new INDArrayIndex[]{NDArrayIndex.all(),NDArrayIndex.point(row)},
+                    image.get(NDArrayIndex.all(),NDArrayIndex.interval(imageRow,imageRow+getKernel()[0])));
+        });
         return result;
     }
 }
