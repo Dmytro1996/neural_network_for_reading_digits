@@ -68,10 +68,6 @@ public class MultiLayerNetwork {
         INDArray[][] nablas=mini_batch.parallelStream().map(mb->backProp(mb[0],mb[1]))
                 .reduce((acc,x)->{
             for(int i=0;i<numOfLayers-1;i++){ 
-                //System.out.println("i:"+i);
-                //System.out.println("acc length:"+acc.length);
-                //System.out.println("acc:"+Arrays.toString(acc));
-                //System.out.println("x:"+Arrays.toString(x));
                 acc[i][0]=acc[i][0].add(x[i][0]);
                 acc[i][1]=acc[i][1].add(x[i][1]);
             }
@@ -93,9 +89,11 @@ public class MultiLayerNetwork {
         INDArray[][] result=new INDArray[layers.size()-1][];
         //System.out.println("x.length:"+x.length());
         INDArray activation=x.dup();
+        //long beginPoint=System.currentTimeMillis();
         for(Layer layer:layers){
             activation=layer.feedforward(activation);
         }
+        //long feedforwardTime=System.currentTimeMillis()-beginPoint;
         result[result.length-1]=layers.get(layers.size()-1).backProp(y, layers.get(layers.size()-2)
                 .getActivations(), null);
         for(int i=result.length-2;i>=0;i--){
@@ -109,6 +107,8 @@ public class MultiLayerNetwork {
             }
             //System.out.println("result[i]: "+Arrays.toString(result[i]));
         }
+        //long backPropTime=System.currentTimeMillis()-beginPoint;
+        //System.out.println("Backpropagation: "+(backPropTime-feedforwardTime)+" Feedforward: "+feedforwardTime);
         return result;        
     }
     
