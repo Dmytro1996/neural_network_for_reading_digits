@@ -48,33 +48,47 @@ public class ConvLayer extends HiddenLayer implements IConvLayer {
         Random rand=new Random();
         setWeights(Nd4j.create(DoubleStream.generate(()->rand.nextGaussian()).limit(numOfFilters*kernel[0]*kernel[1]).toArray(),
                 new long[]{numOfFilters,1,1,kernel[0],kernel[1]}, DataType.DOUBLE));
-        setBiases(Nd4j.create(DoubleStream.generate(()->rand.nextGaussian()).limit(numOfFilters*width*height).toArray(),
-                new long[]{numOfFilters*width*height}, DataType.DOUBLE));
+        /*setBiases(Nd4j.create(DoubleStream.generate(()->rand.nextGaussian()).limit(numOfFilters*width*height).toArray(),
+                new long[]{numOfFilters*width*height}, DataType.DOUBLE));*/
+        setBiases(Nd4j.create(DoubleStream.generate(()->rand.nextGaussian()).limit(numOfFilters).toArray(),
+                new long[]{numOfFilters}, DataType.DOUBLE));
     }
     
     public INDArray feedforward(INDArray activations){
-        setZ(Nd4j.toFlattened(mulConv(activations)).add(getBiases()));
+        setZ(Nd4j.toFlattened(addBiases(mulConv(activations))));
         return getActivations();
     }   
         
-    public INDArray[] backPropConv(INDArray nextWeights, INDArray prevActivations, INDArray nextDelta){
-        INDArray delta=calculateDeltas(nextDelta, nextWeights).mul(getNeuron().derivative(getZ()));
+    public INDArray[] backPropConv(INDArray nextWeights, INDArray prevActivations, INDArray nextDelta, boolean isNextLayerPool){
+        INDArray delta=calculateDeltas(nextDelta, nextWeights, isNextLayerPool).mul(getNeuron().derivative(getZ().reshape(numOfFilters,height,width).sum(1,2)));
         INDArray nabla_w=parseImage(prevActivations)//test ok
-                .mul(delta.reshape(numOfFilters, height, width,1,1)).sum(1,2)
+                //.mul(delta.reshape(numOfFilters, height, width,1,1)).sum(1,2)
+                .mul(delta.reshape(numOfFilters, 1, 1, 1, 1)).sum(1,2)
                 .reshape(numOfFilters,1,1,kernel[0],kernel[1]);
-        return new INDArray[]{delta.reshape(delta.length()), nabla_w};
+        return new INDArray[]{delta.reshape(numOfFilters), nabla_w};
     }
     
     public INDArray[] backProp(INDArray nextWeights, INDArray prevActivations, INDArray nextDelta){
-        INDArray delta=nextWeights.transpose().mmul(nextDelta).mul(getNeuron().derivative(getZ()));
+        INDArray delta=nextWeights.transpose().mmul(nextDelta).mul(getNeuron().derivative(getZ())).reshape(numOfFilters,height*width).sum(1);
         INDArray nabla_w=parseImage(prevActivations)
-                .mul(delta.reshape(numOfFilters, height, width,1,1)).sum(1,2)
+                //.mul(delta.reshape(numOfFilters, height, width,1,1)).sum(1,2)
+                .mul(delta.reshape(numOfFilters, 1, 1,1,1)).sum(1,2)
                 .reshape(numOfFilters,1,1,kernel[0],kernel[1]);
-        return new INDArray[]{delta, nabla_w};
+        return new INDArray[]{delta.reshape(numOfFilters), nabla_w};
     }
     
     public INDArray mulConv(INDArray image){
         return parseImage(image).mul(getWeights()).sum(3,4);
+    }
+    
+    public INDArray addBiases(INDArray summedWeights){
+        INDArray result=summedWeights.dup();
+        //INDArray temp=result;
+        IntStream.range(0, numOfFilters).forEach(filter->{
+            result.put(new INDArrayIndex[]{NDArrayIndex.point(filter)},
+                    summedWeights.get(NDArrayIndex.point(filter)).add(getBiases().getDouble(filter)));
+        });
+        return result;
     }
     
     public INDArray parseImage(INDArray image){
@@ -121,14 +135,14 @@ public class ConvLayer extends HiddenLayer implements IConvLayer {
         return result;
     }
     
-    public INDArray calculateDeltas(INDArray nextDelta, INDArray nextWeights){
+    public INDArray calculateDeltas(INDArray nextDelta, INDArray nextWeights, boolean isNextLayerPool){
         INDArray delta=Nd4j.zeros(numOfFilters,height,width);
         int horStride=1;
         int vertStride=1;
         int nextLayerHeight=0;
         int nextLayerWidth=0;
         int[] nextKernel=new int[]{(int)nextWeights.shape()[3],(int)nextWeights.shape()[4]};
-        if(nextDelta.length()*nextWeights.shape()[3]*nextWeights.shape()[4]==numOfFilters*height*width){
+        if(isNextLayerPool){
             vertStride=(int)nextWeights.shape()[3];
             horStride=(int)nextWeights.shape()[4];
             nextLayerHeight=height/vertStride;
@@ -137,9 +151,9 @@ public class ConvLayer extends HiddenLayer implements IConvLayer {
             nextLayerHeight=height-((int)nextWeights.shape()[3]-1);
             nextLayerWidth=width-((int)nextWeights.shape()[4]-1);            
         }
-        int nextLayerFilters=(int)nextDelta.length()/(nextLayerHeight*nextLayerWidth);
-        INDArray nextDeltaReshaped=nextDelta.reshape(nextLayerFilters, 1, nextLayerHeight*nextLayerWidth);
-        INDArray nextWeightsReshaped=nextWeights.reshape(nextLayerFilters,nextWeights.shape()[3],nextWeights.shape()[4]);
+        //int nextLayerFilters=(int)nextDelta.length()/(nextLayerHeight*nextLayerWidth);
+        INDArray nextDeltaReshaped=nextDelta.reshape(nextDelta.length(), 1, 1);
+        INDArray nextWeightsReshaped=nextWeights.reshape(nextDelta.length(),nextWeights.shape()[3],nextWeights.shape()[4]);
         int[] strides=new int[]{vertStride,horStride};
         INDArray temp=delta;
         int[] sizes=new int[]{nextLayerHeight,nextLayerWidth};
@@ -148,10 +162,9 @@ public class ConvLayer extends HiddenLayer implements IConvLayer {
             int col=i-row*sizes[0];
             temp.get(NDArrayIndex.all(),NDArrayIndex.interval(row*strides[0], row*strides[0]+nextKernel[0]),
                     NDArrayIndex.interval(col*strides[1], col*strides[1]+nextKernel[1]))
-                    .addi(nextDeltaReshaped.get(NDArrayIndex.all(),NDArrayIndex.all(),NDArrayIndex.interval(i,i+1))
-                            .mul(nextWeightsReshaped));
+                    .addi(nextDeltaReshaped.mul(nextWeightsReshaped));
         });
-        return Nd4j.toFlattened(delta);
+        return Nd4j.toFlattened(delta.sum(1,2));
     }
     
     public int[] getImage_shape() {
