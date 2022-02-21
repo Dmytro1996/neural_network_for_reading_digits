@@ -99,8 +99,8 @@ public class MultiLayerNetwork {
         for(int i=result.length-2;i>=0;i--){
             if(layers.get(i+1) instanceof ConvLayer && layers.get(i+2) instanceof ConvLayer){
                 result[i]=((ConvLayer)layers.get(i+1)).backPropConv(((HiddenLayer)layers.get(i+2)).getWeights(),
-                     layers.get(i).getActivations(),
-                     result[i+1][0]);
+                     layers.get(i).getActivations(),result[i+1][0],
+                     layers.get(i+2) instanceof PoolLayer);
             } else{
                 result[i]=layers.get(i+1).backProp(((HiddenLayer)layers.get(i+2)).getWeights(), layers.get(i)
                     .getActivations(), result[i+1][0]);
