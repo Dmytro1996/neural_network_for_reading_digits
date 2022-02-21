@@ -13,5 +13,5 @@ import org.nd4j.linalg.api.ndarray.INDArray;
  */
 public interface IConvLayer extends Layer {
     
-    INDArray[] backPropConv(INDArray nextWeights, INDArray prevActivations, INDArray nextDelta);
+    INDArray[] backPropConv(INDArray nextWeights, INDArray prevActivations, INDArray nextDelta, boolean isNextLayerPool);
 }
