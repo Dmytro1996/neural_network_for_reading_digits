@@ -33,8 +33,8 @@ public class PoolLayer extends ConvLayer{
         Random rand=new Random();
         setWeights(Nd4j.create(DoubleStream.generate(()->rand.nextGaussian()).limit(numOfFilters*kernel[0]*kernel[1]).toArray(),
                 new long[]{numOfFilters,1,1,kernel[0],kernel[1]}, DataType.DOUBLE));
-        setBiases(Nd4j.create(DoubleStream.generate(()->rand.nextGaussian()).limit(getNumOfFilters()*getWidth()*getHeight()).toArray(),
-                new long[]{numOfFilters*getWidth()*getHeight()}, DataType.DOUBLE));
+        setBiases(Nd4j.create(DoubleStream.generate(()->rand.nextGaussian()).limit(getNumOfFilters()).toArray(),
+                new long[]{numOfFilters}, DataType.DOUBLE));
     }
     
     public INDArray mulConv(INDArray image){
