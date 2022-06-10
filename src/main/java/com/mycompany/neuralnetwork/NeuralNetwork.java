@@ -16,11 +16,14 @@ import java.util.List;
 import com.google.gson.Gson;
 import com.mycompany.neuralnetwork.cost.CrossEntropyCost;
 import com.mycompany.neuralnetwork.dataloader.DataLoader;
+import com.mycompany.neuralnetwork.layers.ConvAltLayer;
 import com.mycompany.neuralnetwork.layers.ConvLayer;
 import com.mycompany.neuralnetwork.layers.FlatLayer;
 import com.mycompany.neuralnetwork.layers.InputLayer;
 import com.mycompany.neuralnetwork.layers.OutputLayer;
+import com.mycompany.neuralnetwork.layers.PoolAltLayer;
 import com.mycompany.neuralnetwork.layers.PoolLayer;
+import com.mycompany.neuralnetwork.layers.SoftmaxLayer;
 import com.mycompany.neuralnetwork.network.MultiLayerNetwork;
 import com.mycompany.neuralnetwork.network.NetworkEnhanced;
 import com.mycompany.neuralnetwork.network.NetworkNd4j;
@@ -31,6 +34,7 @@ import com.mycompany.neuralnetwork.optimizers.Adagrad;
 import com.mycompany.neuralnetwork.optimizers.RMSprop;
 import com.mycompany.neuralnetwork.optimizers.SGD;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.Random;
 import java.util.stream.Collectors;
 import java.util.stream.DoubleStream;
@@ -48,8 +52,10 @@ import org.nd4j.linalg.activations.Activation;
 import org.nd4j.linalg.api.buffer.DataBuffer;
 import org.nd4j.linalg.api.buffer.DataType;
 import org.nd4j.linalg.api.ndarray.INDArray;
+import org.nd4j.linalg.cpu.nativecpu.NDArray;
 import org.nd4j.linalg.dataset.api.iterator.DataSetIterator;
 import org.nd4j.linalg.factory.Nd4j;
+import org.nd4j.linalg.factory.ops.NDMath;
 import org.nd4j.linalg.indexing.INDArrayIndex;
 import org.nd4j.linalg.indexing.NDArrayIndex;
 import org.nd4j.linalg.lossfunctions.LossFunctions;
@@ -94,15 +100,12 @@ public class NeuralNetwork {
         conv.setWeights(pseudo_weights);
         System.out.println("Matrix100 flattened"+Nd4j.toFlattened('f', matrix100.reshape(10,10)));
         //System.out.println("matrix100*pseudo_weights:"+matrix100.mul(pseudo_weights));
-        System.out.println("Matrix100 parsed:\n"+conv.parseImage(matrix100,new int[]{1,10,10},new int[]{5,5},true));
-        System.out.println("Matrix100 parsed new conv mul:\n"+conv.parseImageNew(matrix100).mul(pseudo_weights));
-        System.out.println("Matrix100 parsed pool:\n"+poolLayer.parseImageNew(matrix100).mul(pseudo_weights));
+        System.out.println("Matrix100 parsed new conv mul:\n"+conv.parseImage(matrix100).mul(pseudo_weights));
+        System.out.println("Matrix100 parsed pool:\n"+poolLayer.parseImage(matrix100).mul(pseudo_weights));
         System.out.println("Matrix100 mulConv:\n"+conv.mulConv(matrix100));
-        System.out.println("Deltas positions:\n"+Arrays.stream(conv.getDeltasPositions(new int[]{3,3},true))
-                .map(arr->Arrays.toString(arr)).collect(Collectors.joining(",")));
-        System.out.println("Matrix100*pseudo_weights:\n"+conv.parseImage(matrix100,new int[]{2,10,10},new int[]{5,5},true).mul(pseudo_weights).sum(3,4));
-        System.out.println("Matrix100_sum(1,2)*2:\n"+conv.parseImage(matrix100,new int[]{2,10,10},new int[]{5,5},true).sum(1,2).mul(2));
-        System.out.println("Matrix100*pseudo_deltas:\n"+conv.parseImage(matrix100,new int[]{2,10,10},new int[]{5,5},true).mul(pseudo_deltas).sum(1,2));
+        INDArray pseudo_next_deltas=Nd4j.ones(2);
+        INDArray pseudo_next_weights=Nd4j.create(new int[]{1,2,3,4,5,6,7,8},new long[]{2,1,1,2,2},DataType.INT);
+        //System.out.println("Calculated deltas"+conv.calculateDeltas(pseudo_next_deltas, pseudo_next_weights,true));
         INDArray twos=Nd4j.ones(3,2,1).mul(2);
         INDArray threes=Nd4j.ones(3,1,2).mul(3);
         System.out.println("Mmul result:"+Nd4j.matmul(twos, threes));
@@ -115,6 +118,12 @@ public class NeuralNetwork {
         System.out.println("pseudo_weights get:"+pseudo_weights.get(NDArrayIndex.interval(0,1),
                 NDArrayIndex.interval(0,1),
                 NDArrayIndex.interval(0,1)));
+        pseudo_weights=Nd4j.create(IntStream.range(0,50).toArray(),new long[]{2,1,1,5,5},DataType.INT32);
+        pseudo_deltas=Nd4j.create(IntStream.range(0,72).toArray(),new long[]{2,6,6},DataType.INT32);
+        System.out.println("Pseudo weights: "+pseudo_weights);
+        System.out.println("Pseudo deltass: "+pseudo_deltas);
+        System.out.println("Pseudo weights*Pseudo_deltas: "+Nd4j.matmul(pseudo_deltas.reshape(new long[]{2,36,1})
+                ,pseudo_weights.reshape(2,1,25)).toStringFull());
         INDArray matrix10=Nd4j.create(IntStream.iterate(1, (i)->i+1).limit(10).toArray(),new long[]{10}, DataType.INT32);
         INDArray pool=Nd4j.create(new int[]{1,2,3,4},new long[]{2,2},DataType.INT32);
         INDArray delta=Nd4j.matmul(matrix10.reshape(new long[]{1,matrix10.shape()[0]/1,1})//test
@@ -131,9 +140,6 @@ public class NeuralNetwork {
         //subArr.put(new INDArrayIndex[]{NDArrayIndex.all(),NDArrayIndex.all()},subArrC);
         List<INDArray> subArrs=new ArrayList<>();
         subArr.get(NDArrayIndex.point(0)).assign(arrToParse.get(NDArrayIndex.interval(0, 5),NDArrayIndex.interval(0, 5)));
-        int[][] arr= new int[2][];
-        arr[0]=arrToParse.get(NDArrayIndex.interval(0, 5),NDArrayIndex.interval(0, 5)).data().asInt();
-        arr[1]=arrToParse.get(NDArrayIndex.interval(5, 10),NDArrayIndex.interval(5, 10)).data().asInt();
         for(int row=0;row<arrToParse.shape()[0]-4;row++){
             for(int col=0;col<arrToParse.shape()[1]-4;col++){
                 subArrs.add(arrToParse.get(NDArrayIndex.interval(row,row+5),NDArrayIndex.interval(col,col+5)));
@@ -141,21 +147,23 @@ public class NeuralNetwork {
         }
         System.out.println("arrToParse: "+arrToParse);
         System.out.println("subArr: "+subArr.stride());
-        System.out.println("data: "+Arrays.stream(arr).map(a->Arrays.toString(a)).collect(Collectors.joining(",")));
         System.out.println("subArrs[0]: "+subArrs.get(0));
         System.out.println("subArrs[5]: "+subArrs.get(5));
-        arrToParse.muli(matrix100.reshape(10,10));
+        arrToParse.muli(0).addi(matrix100.reshape(10,10));
+        INDArray mediator=Nd4j.zeros(2,5,5);
+        mediator.data().assign(subArrs.get(0).dup().data(),subArrs.get(1).dup().data());
+        System.out.println("Mediator: "+mediator);
         System.out.println("arrToParse: "+arrToParse);
         System.out.println("subArr: "+subArr);
-        System.out.println("data: "+Arrays.stream(arr).map(a->Arrays.toString(a)).collect(Collectors.joining(",")));
         System.out.println("subArrs[0]: "+Arrays.toString(subArrs.get(0).dup().data().asDouble()));
         System.out.println("subArrs[5]: "+subArrs.get(5));
         //System.out.println("Stacked array: "+Nd4j.vstack(subArrs.toArray(new INDArray[subArrs.size()])).reshape(1,6,6,5,5));
+        ConvAltLayer convAlt=new ConvAltLayer(new int[]{1,10,10},2,new int[]{5,5},new SigmoidNeuron());
         long beginPoint=System.currentTimeMillis();
         conv.feedforward(matrix100.reshape(100));
         System.out.println("feedforward: "+(System.currentTimeMillis()-beginPoint));
         beginPoint=System.currentTimeMillis();
-        conv.feedforwardNew(matrix100.reshape(100));
+        //convAlt.feedforward(matrix100.reshape(100));
         System.out.println("feedforwardNew: "+(System.currentTimeMillis()-beginPoint));
         int[][] originalArr=new int[3][3];
         int[][] copyArr=new int[3][3];
@@ -167,16 +175,61 @@ public class NeuralNetwork {
         originalArr=new int[][]{new int[]{1,2,3},new int[]{1,2,3},new int[]{1,2,3}};
         System.out.println("originalArr: "+Arrays.toString(originalArr));
         System.out.println("copyArr: "+Arrays.stream(copyArr).map(a->Arrays.toString(a)).collect(Collectors.joining(",")));
+        String indArrAsJson="[[1,2,3],[1,2,3],[1,2,3]]";
+        System.out.println("INDArray class "+matrix100.getClass());
+        System.out.println("INDArray to json:"+new Gson().toJson(matrix100, INDArray.class));
+        System.out.println("INDArray from json:"+Nd4j.create(new Gson().fromJson(indArrAsJson, double[][].class)));
+        INDArray arrToFill=Nd4j.zeros(1,5,5);
+        INDArray insertedArr=Nd4j.ones(5,5);
+        arrToFill.put(new INDArrayIndex[]{NDArrayIndex.all(),NDArrayIndex.interval(0, 5),NDArrayIndex.interval(0, 5)},
+                insertedArr.get(NDArrayIndex.interval(0, 5),NDArrayIndex.interval(0, 5)));
+        System.out.println("arrToFill:"+arrToFill);
         //Nd4j.matmul(twos, threes);
         //System.out.println(conv.parseImage(matrix100,new int[]{5,5},new int[]{10,10},true).sum(2,3));
         //Network net=new Network(new int[]{784,30,10});
         //NetworkNd4j net=new NetworkNd4j(new int[]{784,30,10});
         //NetworkEnhanced net=new NetworkEnhanced(new int[]{784,30,10}, new CrossEntropyCost(), new SigmoidNeuron());
-        MultiLayerNetwork net=new MultiLayerNetwork(new InputLayer(),
-                new ConvLayer(new int[]{20,28,28},20,new int[]{5,5},new SigmoidNeuron()),
-                new PoolLayer(new int[]{20,24,24},20,new int[]{2,2},new MaxNeuron()),
-                new FlatLayer(2880,100,new SigmoidNeuron()),
-                new OutputLayer(100,10,new SigmoidNeuron(),new CrossEntropyCost()));
+        //NetworkEnhanced net=new NetworkEnhanced(new int[]{7,100,100,2}, new CrossEntropyCost(), new SigmoidNeuron());
+        NetworkNd4j net=new NetworkNd4j(new int[]{69,100,2});
+        pseudo_next_weights=Nd4j.create(IntStream.generate(()->1).limit(720).toArray(),new long[]{10,72},DataType.DOUBLE);
+        pseudo_next_deltas=Nd4j.create(IntStream.generate(()->1).limit(10).toArray(),new long[]{10},DataType.DOUBLE);
+        pseudo_weights=Nd4j.create(IntStream.range(0,50).toArray(),new long[]{2,1,1,5,5},DataType.DOUBLE);
+        INDArray pseudoPrevAct=Nd4j.ones(100);
+        conv.setZ(Nd4j.ones(72));
+        System.out.println("Conv z: "+ conv.getZ());
+        System.out.println("Conv deltas: "+ conv.backProp(pseudo_next_weights, pseudoPrevAct, pseudo_next_deltas)[0]);
+        System.out.println("Conv nabla_w: "+ conv.backProp(pseudo_next_weights, pseudoPrevAct, pseudo_next_deltas)[1]);
+        pseudo_next_weights=Nd4j.create(IntStream.generate(()->1).limit(8).toArray(),new long[]{2,1,1,2,2},DataType.DOUBLE);
+        pseudo_next_deltas=Nd4j.create(IntStream.generate(()->1).limit(2).toArray(),new long[]{2},DataType.DOUBLE);
+        conv.setWeights(pseudo_weights);
+        //System.out.println("Conv deltas from backPropConv: "+ conv.backPropConv(pseudo_next_weights, pseudoPrevAct, pseudo_next_deltas,true)[0]);
+        //System.out.println("Conv nabla_w from backPropConv: "+ conv.backPropConv(pseudo_next_weights, pseudoPrevAct, pseudo_next_deltas,true)[1]);
+        INDArray expected_output=Nd4j.zeros(5);
+        expected_output.get(NDArrayIndex.point(2)).addi(1);
+        System.out.println("Argmax: "+expected_output.argMax(0));
+        System.out.println("Expected output: "+expected_output);
+        List<INDArray[]> pseudoTrainData=new ArrayList<>();
+        List<INDArray[]> pseudoTestData=new ArrayList<>();
+        System.out.println("Different shape matrices subtraction: "+Nd4j.ones(2).sub(Nd4j.zeros(20,1)));
+        //MultiLayerNetwork net=new MultiLayerNetwork(new InputLayer(),
+                //new ConvLayer(new int[]{1,28,28},20,new int[]{5,5},new MaxNeuron()),
+                //new PoolLayer(new int[]{20,24,24},20,new int[]{2,2},new MaxNeuron()),
+                //new ConvLayer(new int[]{20,12,12},20,new int[]{5,5},new MaxNeuron()),
+                //new PoolLayer(new int[]{20,8,8},20,new int[]{2,2},new MaxNeuron()),
+                //new FlatLayer(320,100,new SigmoidNeuron()),
+                //new FlatLayer(320,30,new MaxNeuron()),
+                //new OutputLayer(2880,10,new SigmoidNeuron(),new CrossEntropyCost())
+        //new SoftmaxLayer(320,10));
+        Random rand=new Random();
+        for(int i=0;i<100;i++){
+            pseudoTrainData.add(new INDArray[]{Nd4j.create(DoubleStream.generate(()->rand.nextDouble()).limit(784).toArray(),
+                    new long[]{784},DataType.DOUBLE),expected_output});
+            pseudoTestData.add(new INDArray[]{Nd4j.create(DoubleStream.generate(()->rand.nextDouble()).limit(784).toArray(),
+                    new long[]{784},DataType.DOUBLE),Nd4j.zeros(1).add(2)});
+        }
+        //System.out.println("Before backpropagation: "+net.feedforward(pseudoTrainData.get(0)[0]));
+        //net.SGD(pseudoTrainData, 10, 10, 0.5, 5, pseudoTestData);
+        //System.out.println("After backpropagation: "+net.feedforward(pseudoTrainData.get(0)[0]));
         /*System.out.println("Feedforward:"+
                 net.feedforward(new Matrix(Arrays.asList(new Integer[]{1,0,1}),new int[]{3},Double.class)));
         System.out.println("Sigmoid:"+net.sigmoid(10));
@@ -192,6 +245,26 @@ public class NeuralNetwork {
         System.out.println("Max derivative:"+new MaxNeuron().derivative(Nd4j.create(new int[]{1,-1,-2,3,4,-1,5,0,7},new long[]{3,3},DataType.INT32)));
         List<INDArray[]> training_data_nd4j=DataLoader.loadTrainingDataAsINDArrays(1);
         List<INDArray[]> test_data_nd4j=DataLoader.loadTestDataAsINDArrays();
+        List<INDArray[]> titanic_data=DataLoader.loadDataAsINDArrays(
+                "C:\\Users\\dmytr\\OneDrive\\Documents\\Python\\titanic_kaggle\\train_data_only_with_name.json");
+        List<INDArray[]> titanic_training_data_nd4j=new ArrayList(titanic_data.subList(0,594));
+        for(int i=0;i<9;i++){
+            titanic_training_data_nd4j.addAll(titanic_data.subList(0,594));
+        }
+        List<INDArray[]> titanic_test_data_nd4j=DataLoader.loadDataAsINDArrays(
+                "C:\\Users\\dmytr\\OneDrive\\Documents\\Python\\titanic_kaggle\\test_data_only_with_name.json").subList(594, 891);
+        conv=new ConvLayer(new int[]{1,28,28},20,new int[]{5,5},new SigmoidNeuron());
+        convAlt=new ConvAltLayer(new int[]{1,28,28},20,new int[]{5,5},new SigmoidNeuron());
+        beginPoint=System.currentTimeMillis();
+        for(INDArray[] indArr:training_data_nd4j.subList(0,5)){
+            conv.feedforward(indArr[0]);
+        }
+        System.out.println("feedforward: "+(System.currentTimeMillis()-beginPoint));
+        beginPoint=System.currentTimeMillis();
+        for(INDArray[] indArr:training_data_nd4j.subList(0,5)){
+            //convAlt.feedforward(indArr[0]);
+        }
+        System.out.println("feedforwardNew: "+(System.currentTimeMillis()-beginPoint));
         //net.setWeights(Arrays.asList(new INDArray[]{Nd4j.ones(new int[]{1}).castTo(DataType.DOUBLE)}));
         //net.setBiases(Arrays.asList(new INDArray[]{Nd4j.ones(new int[]{1}).castTo(DataType.DOUBLE)}));
         /*List<INDArray[]> training_data_nd4j=IntStream.range(0, 1000).boxed().map(
@@ -240,10 +313,13 @@ public class NeuralNetwork {
         //net.SGD(training_data, 5, 10, 0.5d, test_data.subList(0, 1000));
         //net.SGD(training_data_nd4j, 10, 10, 0.5d, test_data_nd4j);
         //net.SGD(training_data_nd4j, 10, 10, 0.5d, 5d, false, false, false, test_data_nd4j);
+        //new SGD().optimize(net, training_data_nd4j.subList(0,1000), 10, 10, 0.5d, 5d, false, false, false, test_data_nd4j.subList(0,1000));
+        //new SGD().optimize(net, titanic_training_data_nd4j, 50, 3, 0.01d, 10d, false, false, false, titanic_test_data_nd4j);
+        net.SGD(titanic_training_data_nd4j, 50, 3, 0.1d, titanic_test_data_nd4j);
         //new Adagrad().optimize(net, training_data_nd4j, 10, 10, 0.00005d, 5d, false, false, false, test_data_nd4j);
         //new RMSprop().optimize(net, training_data_nd4j.subList(0, 1000), 10, 10, 0.001d, 0.9d, false, false, false, test_data_nd4j.subList(0, 1000));
-        //net.SGD(training_data_nd4j.subList(0, 100), 10, 10, 0.1d, 100d, test_data_nd4j.subList(0, 100));
-        net.feedforward(training_data_nd4j.get(0)[0]);
+        //net.SGD(training_data_nd4j.subList(0, 100), 10, 10, 0.01d, 1000d, test_data_nd4j.subList(0, 100));
+        //net.feedforward(training_data_nd4j.get(0)[0]);
         //System.out.println(training_data_nd4j.get(0)[0]);
         //System.out.println(Arrays.toString(Nd4j.create(new double[]{0.76498521,0.28495175,2.25854695},
         //        new long[]{3L},DataType.DOUBLE).mul(2.24175968).data().asDouble()));
